@@ -170,9 +170,8 @@ export function GameControls({ room, currentUser, users, onStageChange }: GameCo
     return users.filter(user => user.role === 'player').length
   }
 
-  const getParticipantCount = () => {
-    // 这里应该从抽奖参与者表中获取，暂时用玩家数量代替
-    return getPlayerCount()
+  const getAudienceCount = () => {
+    return users.filter(user => user.role === 'audience').length
   }
 
   if (!isHost) {
@@ -196,7 +195,7 @@ export function GameControls({ room, currentUser, users, onStageChange }: GameCo
                 当前玩家: {getPlayerCount()} 人
               </p>
               <p className="text-white/80 text-sm text-center">
-                参与抽奖: {getParticipantCount()} 人
+                观众人数: {getAudienceCount()} 人
               </p>
               <button
                 onClick={() => confirmAction(
