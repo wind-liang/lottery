@@ -19,8 +19,9 @@ export class GameLogic {
 
   // 生成随机头像URL
   static generateAvatarUrl(): string {
-    const avatarId = Math.floor(Math.random() * 100) + 1
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarId}`
+    const avatarId = Math.floor(Math.random() * 1000000) + 1  // 增加随机性
+    const timestamp = Date.now()
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarId}-${timestamp}`
   }
 
   // 验证主持人密码

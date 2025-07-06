@@ -74,32 +74,66 @@ export default function Home() {
     try {
       setLoading(true)
       setError(null)
+      
+      console.log('🚀 开始初始化应用...')
 
       // 获取或创建用户
       let user = await getOrCreateUser()
       if (!user) {
         throw new Error('无法创建用户')
       }
+      console.log('✅ 用户创建/获取成功:', user)
 
       // 获取或创建房间
       const roomData = await getOrCreateRoom()
       if (!roomData) {
         throw new Error('无法获取房间')
       }
+      console.log('✅ 房间获取成功:', roomData)
 
       // 将用户加入房间
       user = await joinRoom(user.id, roomData.id)
       if (!user) {
         throw new Error('无法加入房间')
       }
+      console.log('✅ 用户加入房间成功:', user)
 
+      // 设置状态
       setCurrentUser(user)
       setRoom(roomData)
+      console.log('✅ 状态设置完成')
       
-      // 获取房间内的所有用户
-      await fetchUsers()
+      // 立即获取房间内的所有用户
+      console.log('🔍 开始获取用户列表...')
+      const { data: roomUsers, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('room_id', roomData.id)
+        .eq('is_online', true)
+        .order('created_at', { ascending: true })
+
+      if (fetchError) {
+        console.error('❌ 获取用户列表失败:', fetchError)
+        throw fetchError
+      }
+      
+      console.log('✅ 用户列表获取成功:', roomUsers)
+      console.log('📊 用户数量:', roomUsers?.length || 0)
+      
+      if (roomUsers && roomUsers.length > 0) {
+        console.log('👥 用户详情:', roomUsers.map(u => ({
+          id: u.id,
+          nickname: u.nickname,
+          role: u.role,
+          avatar_url: u.avatar_url,
+          is_online: u.is_online
+        })))
+      }
+      
+      setUsers(roomUsers || [])
+      console.log('✅ 初始化完成')
     } catch (err) {
-      console.error('初始化应用失败:', err)
+      console.error('❌ 初始化应用失败:', err)
       setError(err instanceof Error ? err.message : '初始化失败')
     } finally {
       setLoading(false)
@@ -108,10 +142,13 @@ export default function Home() {
 
   const getOrCreateUser = async (): Promise<User | null> => {
     try {
+      console.log('🔍 检查本地存储的用户ID...')
       // 先尝试从 localStorage 获取用户ID
       const storedUserId = localStorage.getItem('lottery_user_id')
+      console.log('📦 本地用户ID:', storedUserId)
       
       if (storedUserId) {
+        console.log('🔍 查询现有用户...')
         const { data: existingUser, error } = await supabase
           .from('users')
           .select('*')
@@ -119,6 +156,7 @@ export default function Home() {
           .single()
         
         if (!error && existingUser) {
+          console.log('✅ 找到现有用户:', existingUser)
           // 标记用户为在线
           await supabase
             .from('users')
@@ -126,12 +164,17 @@ export default function Home() {
             .eq('id', existingUser.id)
           
           return existingUser
+        } else {
+          console.log('⚠️ 现有用户查询失败:', error)
         }
       }
 
       // 创建新用户
+      console.log('🆕 创建新用户...')
       const nickname = GameLogic.generateNickname()
       const avatarUrl = GameLogic.generateAvatarUrl()
+      
+      console.log('👤 生成用户信息:', { nickname, avatarUrl })
       
       const { data: newUser, error } = await supabase
         .from('users')
@@ -144,14 +187,19 @@ export default function Home() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ 创建用户失败:', error)
+        throw error
+      }
 
+      console.log('✅ 新用户创建成功:', newUser)
+      
       // 存储用户ID到 localStorage
       localStorage.setItem('lottery_user_id', newUser.id)
       
       return newUser
     } catch (error) {
-      console.error('获取或创建用户失败:', error)
+      console.error('❌ 获取或创建用户失败:', error)
       return null
     }
   }
@@ -207,20 +255,41 @@ export default function Home() {
   }
 
   const fetchUsers = async () => {
-    if (!room) return
+    if (!room) {
+      console.log('⚠️ 房间信息缺失，跳过用户获取')
+      return
+    }
 
     try {
+      console.log('🔍 获取房间用户列表...', room.id)
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('room_id', room.id)
         .eq('is_online', true)
-        .order('joined_at', { ascending: true })
+        .order('created_at', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('❌ 获取用户列表失败:', error)
+        throw error
+      }
+      
+      console.log('✅ 用户列表获取成功:', data)
+      console.log('📊 用户数量:', data?.length || 0)
+      
+      if (data && data.length > 0) {
+        console.log('👥 用户详情:', data.map(u => ({
+          id: u.id,
+          nickname: u.nickname,
+          role: u.role,
+          avatar_url: u.avatar_url,
+          is_online: u.is_online
+        })))
+      }
+      
       setUsers(data || [])
     } catch (error) {
-      console.error('获取用户列表失败:', error)
+      console.error('❌ 获取用户列表失败:', error)
     }
   }
 

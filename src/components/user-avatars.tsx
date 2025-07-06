@@ -62,9 +62,14 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChang
 
         <div className="text-center mb-6">
           <img
-            src={user.avatar_url || ''}
+            src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
             alt={user.nickname}
             className="w-16 h-16 rounded-full mx-auto mb-2"
+            onError={(e) => {
+              console.log('模态框头像加载失败，使用默认头像:', user.avatar_url)
+              const target = e.target as HTMLImageElement
+              target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
+            }}
           />
           <h4 className="font-medium text-gray-800">{user.nickname}</h4>
           <p className="text-sm text-gray-500">
@@ -213,9 +218,17 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
             >
               <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role)} shadow-lg relative overflow-hidden`}>
                 <img
-                  src={user.avatar_url || ''}
+                  src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
                   alt={user.nickname}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log('头像加载失败，使用默认头像:', user.avatar_url)
+                    const target = e.target as HTMLImageElement
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`
+                  }}
+                  onLoad={() => {
+                    console.log('头像加载成功:', user.avatar_url)
+                  }}
                 />
                 
                 {/* 角色图标 */}
