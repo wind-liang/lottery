@@ -18,18 +18,26 @@ interface UserAvatarsProps {
 interface RoleChangeModalProps {
   user: User
   currentUser: User
+  users: User[]
   onClose: () => void
   onRoleChange: (userId: string, role: User['role']) => void
   onKickUser: (userId: string) => void
 }
 
-function RoleChangeModal({ user, currentUser, onClose, onRoleChange, onKickUser }: RoleChangeModalProps) {
+function RoleChangeModal({ user, currentUser, users, onClose, onRoleChange, onKickUser }: RoleChangeModalProps) {
   const [password, setPassword] = useState('')
   const [showPasswordInput, setShowPasswordInput] = useState(false)
   const [showKickConfirm, setShowKickConfirm] = useState(false)
   const [error, setError] = useState('')
 
   const handleBecomeHost = () => {
+    // 检查主持人数量限制
+    const hostCount = users.filter(u => u.role === 'host').length
+    if (hostCount >= 2) {
+      setError('最多只能有两个主持人')
+      return
+    }
+
     if (GameLogic.verifyHostPassword(password)) {
       onRoleChange(user.id, 'host')
       onClose()
@@ -39,10 +47,20 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange, onKickUser 
   }
 
   const handleRoleChange = (newRole: User['role']) => {
-    if (newRole === 'host' && currentUser.role !== 'host') {
-      setShowPasswordInput(true)
-      return
+    if (newRole === 'host') {
+      // 检查主持人数量限制
+      const hostCount = users.filter(u => u.role === 'host').length
+      if (hostCount >= 2) {
+        setError('最多只能有两个主持人')
+        return
+      }
+      
+      if (currentUser.role !== 'host') {
+        setShowPasswordInput(true)
+        return
+      }
     }
+    
     onRoleChange(user.id, newRole)
     onClose()
   }
@@ -86,6 +104,13 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange, onKickUser 
           </p>
         </div>
 
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+        )}
+
         {showPasswordInput ? (
           <div className="space-y-4">
             <div>
@@ -99,13 +124,13 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange, onKickUser 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="请输入密码"
               />
-              {error && (
-                <p className="text-red-500 text-sm mt-1">{error}</p>
-              )}
             </div>
             <div className="flex space-x-2">
               <button
-                onClick={() => setShowPasswordInput(false)}
+                onClick={() => {
+                  setShowPasswordInput(false)
+                  setError('')
+                }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 取消
@@ -253,7 +278,9 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
     return 'w-10 h-10'
   }
 
-  const avatarSize = getAvatarSize(users.length)
+  // 过滤掉主持人，因为主持人头像已经在抽奖箱两侧显示
+  const nonHostUsers = users.filter(user => user.role !== 'host')
+  const avatarSize = getAvatarSize(nonHostUsers.length)
 
   return (
     <div className="mb-8">
@@ -263,7 +290,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
         </h3>
         
         <div className="flex flex-wrap justify-center gap-3">
-          {users.map((user) => (
+          {nonHostUsers.map((user) => (
             <div
               key={user.id}
               className="relative cursor-pointer p-2"
@@ -287,7 +314,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
                 {/* 表情显示 */}
                 {user.current_emoji && user.emoji_expires_at && new Date(user.emoji_expires_at) > new Date() && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                    <span className={`animate-bounce ${users.length <= 6 ? 'text-2xl' : users.length <= 12 ? 'text-xl' : 'text-lg'}`}>
+                    <span className={`animate-bounce ${nonHostUsers.length <= 6 ? 'text-2xl' : nonHostUsers.length <= 12 ? 'text-xl' : 'text-lg'}`}>
                       {user.current_emoji}
                     </span>
                   </div>
@@ -343,6 +370,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
         <RoleChangeModal
           user={selectedUser}
           currentUser={currentUser}
+          users={users}
           onClose={() => setSelectedUser(null)}
           onRoleChange={onRoleChange}
           onKickUser={onKickUser}

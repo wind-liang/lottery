@@ -333,6 +333,15 @@ export default function Home() {
 
   const updateUserRole = async (userId: string, role: User['role']) => {
     try {
+      // 如果要设置为主持人，检查数量限制
+      if (role === 'host') {
+        const hostCount = users.filter(u => u.role === 'host').length
+        if (hostCount >= 2) {
+          alert('最多只能有两个主持人')
+          return
+        }
+      }
+      
       const { error } = await supabase
         .from('users')
         .update({ role })
@@ -346,6 +355,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('更新用户角色失败:', error)
+      alert('更新用户角色失败，请重试')
     }
   }
 

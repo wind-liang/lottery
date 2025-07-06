@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Gift, X } from 'lucide-react'
+import { Gift, X, Crown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
@@ -20,6 +20,12 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
   const [isOpen, setIsOpen] = useState(false)
   const [participants, setParticipants] = useState<User[]>([])
   const [isShaking] = useState(false)
+
+  // 获取主持人列表（最多两个，按加入时间排序）
+  const hosts = users
+    .filter(user => user.role === 'host' && user.is_online)
+    .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
+    .slice(0, 2)
 
   // 获取抽奖参与者
   useEffect(() => {
@@ -81,43 +87,133 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
     currentUserRole: currentUser.role,
     stage,
     isParticipating,
-    canParticipate
+    canParticipate,
+    hosts: hosts.length
   })
 
   return (
     <div className="relative mb-8">
-      {/* 抽奖箱 */}
-      <motion.div
-        className="relative mx-auto w-32 h-32 cursor-pointer z-10"
-        onClick={toggleBox}
-        animate={isShaking ? { rotate: [-2, 2, -2, 2, 0] } : {}}
-        transition={{ duration: 0.5 }}
-      >
-        {/* 箱子主体 */}
-        <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl border-4 border-yellow-300 shadow-lg relative overflow-visible">
-          {/* 箱子装饰 */}
-          <div className="absolute inset-2 border-2 border-yellow-200 rounded-lg"></div>
-          
-          {/* 礼物图标 */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Gift className="w-12 h-12 text-white" />
-          </div>
-
-          {/* 参与者数量指示器 */}
-          {participants.length > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold z-20">
-              {participants.length}
-            </div>
+      {/* 主持人头像和抽奖箱布局 */}
+      <div className="flex items-center justify-center space-x-8">
+        {/* 左侧主持人头像 */}
+        <div className="flex-1 flex justify-end">
+          {hosts[0] && (
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="w-16 h-16 rounded-full border-4 border-yellow-400 shadow-yellow-400/50 shadow-lg relative">
+                <img
+                  src={hosts[0].avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${hosts[0].id}`}
+                  alt={hosts[0].nickname}
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${hosts[0].id}`
+                  }}
+                />
+                {/* 表情显示 */}
+                {hosts[0].current_emoji && hosts[0].emoji_expires_at && new Date(hosts[0].emoji_expires_at) > new Date() && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
+                    <span className="text-xl animate-bounce">
+                      {hosts[0].current_emoji}
+                    </span>
+                  </div>
+                )}
+                {/* 主持人图标 */}
+                <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 border border-gray-200">
+                  <Crown className="w-3 h-3 text-yellow-400" />
+                </div>
+                {/* 在线状态指示器 */}
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                {hosts[0].nickname}
+              </p>
+            </motion.div>
           )}
         </div>
 
-        {/* 箱子盖子 */}
+        {/* 抽奖箱 */}
         <motion.div
-          className="absolute -top-2 left-2 right-2 h-4 bg-gradient-to-br from-yellow-300 to-orange-400 rounded-t-xl border-2 border-yellow-200"
-          animate={isOpen ? { rotateX: -45, y: -10 } : { rotateX: 0, y: 0 }}
-          style={{ transformOrigin: 'bottom' }}
-        />
-      </motion.div>
+          className="relative w-32 h-32 cursor-pointer z-10"
+          onClick={toggleBox}
+          animate={isShaking ? { rotate: [-2, 2, -2, 2, 0] } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          {/* 箱子主体 */}
+          <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl border-4 border-yellow-300 shadow-lg relative overflow-visible">
+            {/* 箱子装饰 */}
+            <div className="absolute inset-2 border-2 border-yellow-200 rounded-lg"></div>
+            
+            {/* 礼物图标 */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Gift className="w-12 h-12 text-white" />
+            </div>
+
+            {/* 参与者数量指示器 */}
+            {participants.length > 0 && (
+              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold z-20">
+                {participants.length}
+              </div>
+            )}
+          </div>
+
+          {/* 箱子盖子 */}
+          <motion.div
+            className="absolute -top-2 left-2 right-2 h-4 bg-gradient-to-br from-yellow-300 to-orange-400 rounded-t-xl border-2 border-yellow-200"
+            animate={isOpen ? { rotateX: -45, y: -10 } : { rotateX: 0, y: 0 }}
+            style={{ transformOrigin: 'bottom' }}
+          />
+        </motion.div>
+
+        {/* 右侧主持人头像 */}
+        <div className="flex-1 flex justify-start">
+          {hosts[1] && (
+            <motion.div
+              className="relative"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="w-16 h-16 rounded-full border-4 border-yellow-400 shadow-yellow-400/50 shadow-lg relative">
+                <img
+                  src={hosts[1].avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${hosts[1].id}`}
+                  alt={hosts[1].nickname}
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${hosts[1].id}`
+                  }}
+                />
+                {/* 表情显示 */}
+                {hosts[1].current_emoji && hosts[1].emoji_expires_at && new Date(hosts[1].emoji_expires_at) > new Date() && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
+                    <span className="text-xl animate-bounce">
+                      {hosts[1].current_emoji}
+                    </span>
+                  </div>
+                )}
+                {/* 主持人图标 */}
+                <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 border border-gray-200">
+                  <Crown className="w-3 h-3 text-yellow-400" />
+                </div>
+                {/* 在线状态指示器 */}
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                {hosts[1].nickname}
+              </p>
+            </motion.div>
+          )}
+        </div>
+      </div>
 
       {/* 参与抽奖按钮 */}
       {canParticipate && (
