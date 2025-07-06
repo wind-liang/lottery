@@ -486,14 +486,23 @@ export default function Home() {
       {/* 游戏阶段指示器 */}
       <GameStage stage={room.stage} />
       
-      {/* 设置按钮 */}
-      <div className="fixed top-4 right-4 z-10">
+      {/* 设置按钮 - 在表情按钮上方对齐 */}
+      <div className="fixed bottom-20 right-4 z-50">
         <button
           onClick={() => setShowSettings(true)}
-          className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors border border-white/30"
-          title="个人设置"
+          className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-all hover:scale-110 border border-white/30 shadow-lg flex items-center justify-center"
+          title={`个人设置 - ${currentUser.nickname || '未设置昵称'}`}
         >
-          <Settings className="w-5 h-5" />
+          <div className="relative">
+            <Settings className="w-5 h-5" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full overflow-hidden border border-white/50">
+              <img
+                src={currentUser.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
+                alt="用户头像"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
         </button>
       </div>
       
