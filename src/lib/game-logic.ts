@@ -244,18 +244,87 @@ export class GameLogic {
   static async sendEmoji(userId: string, roomId: string, emoji: string): Promise<boolean> {
     try {
       const expiresAt = new Date()
-      expiresAt.setSeconds(expiresAt.getSeconds() + 2) // 2秒后过期
+      expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
       
-      const { error } = await supabase
-        .from('emojis')
-        .insert({
-          user_id: userId,
-          room_id: roomId,
-          emoji,
-          expires_at: expiresAt.toISOString()
+      console.log('🎭 GameLogic.sendEmoji 开始:', {
+        userId,
+        roomId,
+        emoji,
+        expiresAt: expiresAt.toISOString()
+      })
+      
+      // 先检查用户是否存在
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id, nickname, current_emoji, emoji_expires_at')
+        .eq('id', userId)
+        .single()
+      
+      if (checkError) {
+        console.error('🎭 查询用户失败:', checkError)
+        throw checkError
+      }
+      
+      console.log('🎭 找到用户:', existingUser)
+      
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          current_emoji: emoji,
+          emoji_expires_at: expiresAt.toISOString()
         })
+        .eq('id', userId)
+        .select('id, nickname, current_emoji, emoji_expires_at')
       
-      if (error) throw error
+      if (error) {
+        console.error('🎭 数据库更新失败:', error)
+        throw error
+      }
+      
+      console.log('🎭 数据库更新成功:', data)
+      
+      // 验证更新结果
+      if (!data || data.length === 0) {
+        console.error('🎭 更新失败：没有找到匹配的用户记录')
+        throw new Error('更新失败：没有找到匹配的用户记录')
+      }
+      
+      const updatedUser = data[0]
+      if (updatedUser.current_emoji !== emoji) {
+        console.error('🎭 更新失败：表情字段更新不正确', {
+          expected: emoji,
+          actual: updatedUser.current_emoji
+        })
+        throw new Error('表情字段更新不正确')
+      }
+      
+      console.log('🎭 表情更新验证成功:', updatedUser)
+      
+      // 再次查询数据库验证是否真的更新了
+      console.log('🔍 重新查询数据库验证更新结果...')
+      const { data: verifyUser, error: verifyError } = await supabase
+        .from('users')
+        .select('id, nickname, current_emoji, emoji_expires_at')
+        .eq('id', userId)
+        .single()
+      
+      if (verifyError) {
+        console.error('🎭 验证查询失败:', verifyError)
+      } else {
+        console.log('🎭 数据库实际状态:', verifyUser)
+        
+        if (verifyUser.current_emoji !== emoji) {
+          console.error('🚨 严重错误：数据库实际没有更新！', {
+            expected: emoji,
+            actual: verifyUser.current_emoji,
+            userInDb: verifyUser
+          })
+          throw new Error(`数据库实际没有更新！期望: ${emoji}, 实际: ${verifyUser.current_emoji}`)
+        } else {
+          console.log('✅ 数据库实际更新确认成功!')
+        }
+      }
+      
       return true
     } catch (error) {
       console.error('发送表情失败:', error)
@@ -266,7 +335,7 @@ export class GameLogic {
   // 清理过期表情
   static async cleanupExpiredEmojis(): Promise<void> {
     try {
-      await supabase.rpc('cleanup_expired_emojis')
+      await supabase.rpc('cleanup_expired_user_emojis')
     } catch (error) {
       console.error('清理过期表情失败:', error)
     }

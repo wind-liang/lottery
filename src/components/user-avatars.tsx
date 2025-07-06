@@ -213,14 +213,14 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
           {users.map((user) => (
             <div
               key={user.id}
-              className="relative cursor-pointer"
+              className="relative cursor-pointer p-2"
               onClick={() => handleUserClick(user)}
             >
-              <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role)} shadow-lg relative overflow-hidden`}>
+              <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role)} shadow-lg relative`}>
                 <img
                   src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
                   alt={user.nickname}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-full"
                   onError={(e) => {
                     console.log('头像加载失败，使用默认头像:', user.avatar_url)
                     const target = e.target as HTMLImageElement
@@ -230,6 +230,15 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
                     console.log('头像加载成功:', user.avatar_url)
                   }}
                 />
+                
+                {/* 表情显示 */}
+                {user.current_emoji && user.emoji_expires_at && new Date(user.emoji_expires_at) > new Date() && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
+                    <span className={`animate-bounce ${users.length <= 6 ? 'text-2xl' : users.length <= 12 ? 'text-xl' : 'text-lg'}`}>
+                      {user.current_emoji}
+                    </span>
+                  </div>
+                )}
                 
                 {/* 角色图标 */}
                 <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 border border-gray-200">
@@ -256,7 +265,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
                 )}
               </div>
               
-              <p className="text-white text-xs text-center mt-1 truncate w-16">
+              <p className="text-white text-xs text-center mt-1 truncate max-w-20">
                 {user.nickname}
               </p>
             </div>

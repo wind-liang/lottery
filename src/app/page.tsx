@@ -44,8 +44,11 @@ export default function Home() {
           filter: `room_id=eq.${room.id}`,
         },
         (payload) => {
-          console.log('用户数据变化:', payload)
-          fetchUsers()
+          console.log('🔄 用户数据变化:', payload)
+          console.log('🔄 触发fetchUsers刷新')
+          setTimeout(() => {
+            fetchUsers()
+          }, 100) // 稍微延迟确保数据同步
         }
       )
       .subscribe()
@@ -72,6 +75,24 @@ export default function Home() {
       supabase.removeChannel(roomChannel)
     }
   }, [room])
+
+  // 定期清理过期表情和刷新UI
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      GameLogic.cleanupExpiredEmojis()
+      // 同时检查是否有表情过期，如果有则刷新UI
+      if (users.some(user => 
+        user.current_emoji && 
+        user.emoji_expires_at && 
+        new Date(user.emoji_expires_at) <= new Date()
+      )) {
+        console.log('🔄 检测到过期表情，刷新用户界面')
+        fetchUsers()
+      }
+    }, 1000) // 每秒检查一次
+
+    return () => clearInterval(cleanupInterval)
+  }, [users])
 
   const initializeApp = async () => {
     try {
@@ -129,7 +150,9 @@ export default function Home() {
           nickname: u.nickname,
           role: u.role,
           avatar_url: u.avatar_url,
-          is_online: u.is_online
+          is_online: u.is_online,
+          current_emoji: u.current_emoji,
+          emoji_expires_at: u.emoji_expires_at
         })))
       }
       
@@ -353,7 +376,9 @@ export default function Home() {
           nickname: u.nickname,
           role: u.role,
           avatar_url: u.avatar_url,
-          is_online: u.is_online
+          is_online: u.is_online,
+          current_emoji: u.current_emoji,
+          emoji_expires_at: u.emoji_expires_at
         })))
       }
       
@@ -501,7 +526,12 @@ export default function Home() {
           <EmojiPanel
             currentUser={currentUser}
             roomId={room.id}
+            onEmojiSent={() => {
+              console.log('🎯 收到表情发送回调，刷新用户数据')
+              fetchUsers()
+            }}
           />
+
         </div>
       </div>
       

@@ -12,6 +12,8 @@ CREATE TABLE users (
   order_number INTEGER,
   selected_reward INTEGER,
   is_online BOOLEAN DEFAULT true,
+  current_emoji TEXT,
+  emoji_expires_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

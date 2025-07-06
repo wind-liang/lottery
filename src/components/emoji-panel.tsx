@@ -10,6 +10,7 @@ type User = Database['public']['Tables']['users']['Row']
 interface EmojiPanelProps {
   currentUser: User
   roomId: string
+  onEmojiSent?: () => void
 }
 
 const emojis = [
@@ -20,7 +21,7 @@ const emojis = [
   '🎉', '🎊', '🎈', '🎁', '🏆', '🥇'
 ]
 
-export function EmojiPanel({ currentUser, roomId }: EmojiPanelProps) {
+export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isDisabled, setIsDisabled] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -41,10 +42,24 @@ export function EmojiPanel({ currentUser, roomId }: EmojiPanelProps) {
 
     try {
       setIsDisabled(true)
-      setCountdown(2)
+      setCountdown(5)
       setIsOpen(false)
 
-      await GameLogic.sendEmoji(currentUser.id, roomId, emoji)
+      console.log('🎭 准备发送表情:', {
+        emoji,
+        userId: currentUser.id,
+        roomId,
+        userNickname: currentUser.nickname
+      })
+
+      const result = await GameLogic.sendEmoji(currentUser.id, roomId, emoji)
+      console.log('🎭 表情发送结果:', result)
+      
+      // 发送成功后立即刷新用户数据
+      if (result && onEmojiSent) {
+        console.log('🔄 表情发送成功，触发数据刷新')
+        onEmojiSent()
+      }
     } catch (error) {
       console.error('发送表情失败:', error)
       setIsDisabled(false)

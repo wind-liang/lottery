@@ -15,6 +15,8 @@ export interface Database {
           order_number: number | null
           selected_reward: number | null
           is_online: boolean
+          current_emoji: string | null
+          emoji_expires_at: string | null
         }
         Insert: {
           id?: string
@@ -26,6 +28,8 @@ export interface Database {
           order_number?: number | null
           selected_reward?: number | null
           is_online?: boolean
+          current_emoji?: string | null
+          emoji_expires_at?: string | null
         }
         Update: {
           id?: string
@@ -37,6 +41,8 @@ export interface Database {
           order_number?: number | null
           selected_reward?: number | null
           is_online?: boolean
+          current_emoji?: string | null
+          emoji_expires_at?: string | null
         }
       }
       rooms: {
