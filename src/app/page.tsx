@@ -9,6 +9,8 @@ import { GameControls } from '@/components/game-controls'
 import { EmojiPanel } from '@/components/emoji-panel'
 import { GameStage } from '@/components/game-stage'
 import { LoadingSpinner } from '@/components/loading-spinner'
+import { UserSettings } from '@/components/user-settings'
+import { Settings } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -20,6 +22,7 @@ export default function Home() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   // 初始化用户和房间
   useEffect(() => {
@@ -143,6 +146,7 @@ export default function Home() {
   const getOrCreateUser = async (): Promise<User | null> => {
     try {
       console.log('🔍 检查本地存储的用户ID...')
+      
       // 先尝试从 localStorage 获取用户ID
       const storedUserId = localStorage.getItem('lottery_user_id')
       console.log('📦 本地用户ID:', storedUserId)
@@ -157,6 +161,45 @@ export default function Home() {
         
         if (!error && existingUser) {
           console.log('✅ 找到现有用户:', existingUser)
+          
+          // 检查localStorage中是否有更新的用户设置
+          const storedSettings = localStorage.getItem('lottery_user_settings')
+          if (storedSettings) {
+            try {
+              const settings = JSON.parse(storedSettings)
+              console.log('📦 找到本地用户设置:', settings)
+              
+              // 检查是否需要同步到数据库
+              const needsUpdate = 
+                settings.nickname !== existingUser.nickname ||
+                settings.avatar_url !== existingUser.avatar_url
+              
+              if (needsUpdate) {
+                console.log('🔄 同步本地设置到数据库...')
+                const { data: updatedUser, error: updateError } = await supabase
+                  .from('users')
+                  .update({
+                    nickname: settings.nickname,
+                    avatar_url: settings.avatar_url,
+                    is_online: true,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', existingUser.id)
+                  .select()
+                  .single()
+                
+                if (updateError) {
+                  console.error('⚠️ 同步设置失败:', updateError)
+                } else {
+                  console.log('✅ 设置同步成功:', updatedUser)
+                  return updatedUser
+                }
+              }
+            } catch (e) {
+              console.error('⚠️ 解析本地设置失败:', e)
+            }
+          }
+          
           // 标记用户为在线
           await supabase
             .from('users')
@@ -171,8 +214,27 @@ export default function Home() {
 
       // 创建新用户
       console.log('🆕 创建新用户...')
-      const nickname = GameLogic.generateNickname()
-      const avatarUrl = GameLogic.generateAvatarUrl()
+      
+      // 检查localStorage中是否有用户设置
+      const storedSettings = localStorage.getItem('lottery_user_settings')
+      let nickname = GameLogic.generateNickname()
+      let avatarUrl = GameLogic.generateAvatarUrl()
+      
+      if (storedSettings) {
+        try {
+          const settings = JSON.parse(storedSettings)
+          if (settings.nickname) {
+            nickname = settings.nickname
+            console.log('📦 使用本地昵称:', nickname)
+          }
+          if (settings.avatar_url) {
+            avatarUrl = settings.avatar_url
+            console.log('📦 使用本地头像:', avatarUrl)
+          }
+        } catch (e) {
+          console.error('⚠️ 解析本地设置失败:', e)
+        }
+      }
       
       console.log('👤 生成用户信息:', { nickname, avatarUrl })
       
@@ -196,6 +258,14 @@ export default function Home() {
       
       // 存储用户ID到 localStorage
       localStorage.setItem('lottery_user_id', newUser.id)
+      
+      // 同步用户设置到localStorage
+      const userSettings = {
+        nickname: newUser.nickname,
+        avatar_url: newUser.avatar_url,
+        updated_at: new Date().toISOString()
+      }
+      localStorage.setItem('lottery_user_settings', JSON.stringify(userSettings))
       
       return newUser
     } catch (error) {
@@ -328,6 +398,34 @@ export default function Home() {
     }
   }
 
+  const updateUserInfo = async (updatedUser: User) => {
+    try {
+      console.log('🔄 更新用户信息:', updatedUser)
+      
+      // 更新当前用户状态
+      if (currentUser?.id === updatedUser.id) {
+        setCurrentUser(updatedUser)
+      }
+      
+      // 更新用户列表中的用户信息
+      setUsers(prev => prev.map(user => 
+        user.id === updatedUser.id ? updatedUser : user
+      ))
+      
+      // 同步到localStorage
+      const userSettings = {
+        nickname: updatedUser.nickname,
+        avatar_url: updatedUser.avatar_url,
+        updated_at: new Date().toISOString()
+      }
+      localStorage.setItem('lottery_user_settings', JSON.stringify(userSettings))
+      
+      console.log('✅ 用户信息更新成功')
+    } catch (error) {
+      console.error('❌ 更新用户信息失败:', error)
+    }
+  }
+
   if (loading) {
     return <LoadingSpinner />
   }
@@ -358,6 +456,17 @@ export default function Home() {
       {/* 游戏阶段指示器 */}
       <GameStage stage={room.stage} />
       
+      {/* 设置按钮 */}
+      <div className="fixed top-4 right-4 z-10">
+        <button
+          onClick={() => setShowSettings(true)}
+          className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-full hover:bg-white/30 transition-colors border border-white/30"
+          title="个人设置"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+      </div>
+      
       {/* 主游戏区域 */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
@@ -373,10 +482,10 @@ export default function Home() {
           <UserAvatars
             users={users}
             currentUser={currentUser}
-                         onUserClick={(user: User) => {
-               // 处理用户点击事件
-               console.log('用户点击:', user)
-             }}
+            onUserClick={(user: User) => {
+              // 处理用户点击事件
+              console.log('用户点击:', user)
+            }}
             onRoleChange={updateUserRole}
           />
           
@@ -395,6 +504,15 @@ export default function Home() {
           />
         </div>
       </div>
+      
+      {/* 用户设置弹窗 */}
+      {showSettings && currentUser && (
+        <UserSettings
+          user={currentUser}
+          onClose={() => setShowSettings(false)}
+          onUserUpdate={updateUserInfo}
+        />
+      )}
     </div>
   )
 }
