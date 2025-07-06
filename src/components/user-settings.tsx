@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, User, Camera, Save, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
+import { ImageUpload } from '@/components/image-upload'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -34,6 +35,7 @@ export function UserSettings({ user, onClose, onUserUpdate }: UserSettingsProps)
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar_url || AVATAR_OPTIONS[0])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<'select' | 'upload'>('select')
 
   // 生成更多随机头像选项
   const generateRandomAvatars = () => {
@@ -111,6 +113,17 @@ export function UserSettings({ user, onClose, onUserUpdate }: UserSettingsProps)
     setNickname(randomNickname)
   }
 
+  const handleUploadSuccess = (url: string) => {
+    setSelectedAvatar(url)
+    setError('')
+    console.log('✅ 头像上传成功:', url)
+  }
+
+  const handleUploadError = (error: string) => {
+    setError(error)
+    console.error('❌ 头像上传失败:', error)
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -175,7 +188,7 @@ export function UserSettings({ user, onClose, onUserUpdate }: UserSettingsProps)
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium text-gray-700">
-              选择头像
+              头像设置
             </label>
             <button
               onClick={handleRefreshAvatars}
@@ -185,31 +198,67 @@ export function UserSettings({ user, onClose, onUserUpdate }: UserSettingsProps)
               <span>更换头像</span>
             </button>
           </div>
-          
-          <div className="grid grid-cols-4 gap-3 max-h-60 overflow-y-auto">
-            {avatarOptions.map((avatar, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedAvatar(avatar)}
-                className={`relative w-14 h-14 rounded-full border-2 transition-all ${
-                  selectedAvatar === avatar
-                    ? 'border-purple-500 ring-2 ring-purple-200'
-                    : 'border-gray-200 hover:border-purple-300'
-                }`}
-              >
-                <img
-                  src={avatar}
-                  alt={`头像选项 ${index + 1}`}
-                  className="w-full h-full rounded-full object-cover"
-                />
-                {selectedAvatar === avatar && (
-                  <div className="absolute inset-0 bg-purple-500/20 rounded-full flex items-center justify-center">
-                    <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                  </div>
-                )}
-              </button>
-            ))}
+
+          {/* 选项卡 */}
+          <div className="flex mb-4 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('select')}
+              className={`flex-1 py-2 px-4 text-sm font-medium border-b-2 ${
+                activeTab === 'select'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              选择头像
+            </button>
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`flex-1 py-2 px-4 text-sm font-medium border-b-2 ${
+                activeTab === 'upload'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              上传头像
+            </button>
           </div>
+
+          {/* 头像选择内容 */}
+          {activeTab === 'select' && (
+            <div className="grid grid-cols-4 gap-3 max-h-60 overflow-y-auto">
+              {avatarOptions.map((avatar, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedAvatar(avatar)}
+                  className={`relative w-14 h-14 rounded-full border-2 transition-all ${
+                    selectedAvatar === avatar
+                      ? 'border-purple-500 ring-2 ring-purple-200'
+                      : 'border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  <img
+                    src={avatar}
+                    alt={`头像选项 ${index + 1}`}
+                    className="w-full h-full rounded-full object-cover"
+                  />
+                  {selectedAvatar === avatar && (
+                    <div className="absolute inset-0 bg-purple-500/20 rounded-full flex items-center justify-center">
+                      <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 上传头像内容 */}
+          {activeTab === 'upload' && (
+            <ImageUpload
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              className="mt-4"
+            />
+          )}
         </div>
 
         {/* 操作按钮 */}
