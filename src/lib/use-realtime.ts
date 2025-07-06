@@ -28,7 +28,7 @@ export function useRealtime({
   const channelsRef = useRef<RealtimeChannel[]>([])
   const lastUsersRef = useRef<User[]>([])
 
-  // 获取房间内的所有用户
+  // 获取房间内的所有用户（包括离线用户）
   const fetchRoomUsers = useCallback(async () => {
     if (!roomId) return
 
@@ -38,7 +38,7 @@ export function useRealtime({
       .from('users')
       .select('*')
       .eq('room_id', roomId)
-      .eq('is_online', true)
+      .order('is_online', { ascending: false }) // 在线用户排在前面
       .order('created_at', { ascending: true })
 
     if (error) {
@@ -46,7 +46,9 @@ export function useRealtime({
       return
     }
 
-    console.log('✅ [Realtime] 获取到用户列表:', users?.length || 0, '个用户')
+    const onlineCount = users?.filter(u => u.is_online).length || 0
+    const offlineCount = users?.filter(u => !u.is_online).length || 0
+    console.log('✅ [Realtime] 获取到用户列表:', users?.length || 0, '个用户 (在线:', onlineCount, '离线:', offlineCount, ')')
     
     // 检测新用户加入和用户离开
     const currentUsers = users || []

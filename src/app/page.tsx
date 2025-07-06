@@ -12,6 +12,7 @@ import { LoadingSpinner } from '@/components/loading-spinner'
 import { UserSettings } from '@/components/user-settings'
 import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
 import { useRealtime } from '@/lib/use-realtime'
+import { useUserPresence } from '@/lib/use-user-presence'
 import { Settings } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
@@ -68,6 +69,13 @@ export default function Home() {
         })
       }
     }
+  })
+
+  // 使用用户状态管理hook
+  useUserPresence({
+    userId: currentUser?.id || null,
+    roomId: room?.id || null,
+    enabled: !!currentUser && !!room
   })
 
   // 定期清理过期表情和刷新UI

@@ -11,19 +11,32 @@
    - 用户离开房间时，实时更新用户列表
    - 用户在线状态的实时同步
 
-2. **实时表情发送**
+2. **智能离线状态检测**
+   - 自动检测用户页面关闭、网络断开等情况
+   - 心跳检测机制，定期检查用户活跃状态
+   - 页面可见性监控（最小化/隐藏时停止心跳）
+   - 用户活动监控（鼠标移动、键盘输入）
+   - 长时间无活动自动标记为离线
+   - 离线用户的特殊视觉效果（灰化、离线标识）
+
+3. **实时表情发送**
    - A用户发送表情，B用户立即看到
    - 表情带有发送者信息和时间戳
    - 自动清理过期表情
 
-3. **实时通知系统**
+4. **实时通知系统**
    - 用户进入/离开房间的通知
    - 表情发送的通知
    - 优雅的通知动画和自动消失
 
-4. **实时房间状态同步**
+5. **实时房间状态同步**
    - 游戏阶段变更的实时同步
    - 房间设置的实时更新
+
+6. **用户清理系统**
+   - 自动清理长时间离线用户
+   - 标记长时间无活动用户为离线
+   - 定期维护用户状态数据
 
 ## 技术实现
 
@@ -33,16 +46,45 @@
    - 管理所有 Supabase Realtime 订阅
    - 提供统一的实时数据处理接口
    - 自动处理连接管理和清理
+   - 支持在线/离线用户数据获取
 
-2. **`src/components/realtime-notifications.tsx`** - 实时通知组件
+2. **`src/lib/use-user-presence.ts`** - 用户状态管理Hook
+   - 心跳检测机制（每15秒发送心跳）
+   - 页面可见性监控
+   - 网络状态监控
+   - 用户活动检测（鼠标、键盘）
+   - 页面卸载时自动设置离线状态
+
+3. **`src/lib/user-cleanup.ts`** - 用户清理工具
+   - 清理长时间离线用户（30分钟）
+   - 标记无活动用户为离线（2分钟）
+   - 定期维护用户状态
+
+4. **`src/components/realtime-notifications.tsx`** - 实时通知组件
    - 显示用户进入/离开通知
    - 显示表情发送通知
    - 自动消失机制
 
-3. **`src/app/page.tsx`** - 主页面集成
+5. **`src/components/user-avatars.tsx`** - 用户头像组件（已优化）
+   - 在线/离线状态视觉区分
+   - 在线状态指示器（绿色圆点）
+   - 离线状态遮罩和图标
+   - 用户计数显示（在线/离线）
+
+6. **`src/app/page.tsx`** - 主页面集成
    - 使用 useRealtime Hook
+   - 使用 useUserPresence Hook
    - 实时数据状态管理
    - 用户交互处理
+
+7. **`src/app/api/user-offline/route.ts`** - 离线状态API
+   - 处理用户离线状态设置
+   - 支持页面卸载时的异步调用
+
+8. **`src/app/test-realtime/page.tsx`** - 完整测试页面
+   - 离线状态测试功能
+   - 用户清理测试
+   - 实时状态监控
 
 ### 数据库表
 
@@ -71,13 +113,14 @@
 
 ```typescript
 import { useRealtime } from '@/lib/use-realtime'
+import { useUserPresence } from '@/lib/use-user-presence'
 import { RealtimeNotifications } from '@/components/realtime-notifications'
 
 // 在组件中使用实时通信
 const { refreshUsers, refreshRoom } = useRealtime({
   roomId: 'your-room-id',
   onUsersChange: (users) => {
-    // 处理用户列表变化
+    // 处理用户列表变化（包括在线/离线状态）
     setUsers(users)
   },
   onEmojiReceived: (emojiData) => {
@@ -92,6 +135,13 @@ const { refreshUsers, refreshRoom } = useRealtime({
     // 处理用户离开
     console.log('用户离开:', userId)
   }
+})
+
+// 使用用户状态管理
+useUserPresence({
+  userId: currentUser?.id,
+  roomId: 'your-room-id',
+  enabled: true // 是否启用状态管理
 })
 
 // 在JSX中添加通知组件
@@ -116,6 +166,40 @@ await supabase
   .update({ is_online: true })
   .eq('id', userId)
 ```
+
+### 离线状态检测机制
+
+```typescript
+import { performUserCleanup, markInactiveUsersOffline } from '@/lib/user-cleanup'
+
+// 标记长时间无活动用户为离线（2分钟无活动）
+await markInactiveUsersOffline()
+
+// 清理长时间离线用户（30分钟离线）
+await performUserCleanup()
+```
+
+### 离线状态检测触发条件
+
+1. **自动心跳检测**
+   - 每15秒发送一次心跳
+   - 2分钟无心跳自动标记为离线
+
+2. **页面状态监控**
+   - 页面隐藏/最小化时停止心跳
+   - 页面重新可见时恢复心跳
+
+3. **网络状态监控**
+   - 网络断开时停止心跳
+   - 网络恢复时重启心跳
+
+4. **用户活动监控**
+   - 鼠标移动触发心跳（限频10秒）
+   - 键盘输入触发心跳（限频10秒）
+
+5. **页面卸载处理**
+   - 使用 `navigator.sendBeacon` 异步设置离线状态
+   - 确保页面关闭时能够正确更新状态
 
 ## 测试方法
 
@@ -184,10 +268,17 @@ await supabase
 通过集成 Supabase Realtime，本项目实现了完整的实时通信功能，包括：
 
 - ✅ 实时用户状态同步
+- ✅ 智能离线状态检测
+- ✅ 心跳检测机制
+- ✅ 用户活动监控
+- ✅ 页面状态监控
+- ✅ 网络状态监控
 - ✅ 实时表情发送与接收
 - ✅ 实时通知系统
+- ✅ 用户清理系统
 - ✅ 自动数据清理
 - ✅ 优雅的错误处理
 - ✅ 完整的测试页面
+- ✅ 离线用户视觉区分
 
 所有功能都已经过测试，可以直接在生产环境中使用。 

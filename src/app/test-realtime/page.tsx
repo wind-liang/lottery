@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRealtime } from '@/lib/use-realtime'
+import { useUserPresence } from '@/lib/use-user-presence'
+import { performUserCleanup, markInactiveUsersOffline } from '@/lib/user-cleanup'
 import { RealtimeNotifications } from '@/components/realtime-notifications'
 import type { Database } from '@/lib/supabase'
 
@@ -35,6 +37,13 @@ export default function TestRealtime() {
         setTestMessage(`${leftUser.nickname} 离开了房间`)
       }
     }
+  })
+
+  // 使用用户状态管理hook
+  useUserPresence({
+    userId: currentUser?.id || null,
+    roomId: room?.id || null,
+    enabled: !!currentUser && !!room
   })
 
   // 初始化测试环境
@@ -162,26 +171,49 @@ export default function TestRealtime() {
           {/* 用户列表 */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <h3 className="font-semibold text-gray-700 mb-4">
-              在线用户 ({users.length})
+              房间用户 ({users.length}) - 在线: {users.filter(u => u.is_online).length}, 离线: {users.filter(u => !u.is_online).length}
             </h3>
             <div className="space-y-2">
               {users.map(user => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between bg-white p-3 rounded-lg"
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    user.is_online 
+                      ? 'bg-white border-green-200' 
+                      : 'bg-gray-100 border-red-200 opacity-70'
+                  }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm relative ${
+                      user.is_online ? 'bg-purple-500' : 'bg-gray-500'
+                    }`}>
                       {user.nickname.charAt(0)}
+                      {/* 在线状态指示器 */}
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-white ${
+                        user.is_online ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
                     </div>
                     <div>
-                      <p className="font-medium text-gray-800">{user.nickname}</p>
-                      <p className="text-sm text-gray-500">{user.role}</p>
+                      <p className={`font-medium ${user.is_online ? 'text-gray-800' : 'text-gray-500'}`}>
+                        {user.nickname}
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm text-gray-500">{user.role}</p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          user.is_online 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {user.is_online ? '在线' : '离线'}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  {user.current_emoji && (
-                    <span className="text-2xl">{user.current_emoji}</span>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {user.current_emoji && (
+                      <span className="text-2xl">{user.current_emoji}</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -207,12 +239,24 @@ export default function TestRealtime() {
             >
               移除用户
             </button>
-            <button
-              onClick={refreshUsers}
-              className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              刷新用户列表
-            </button>
+                          <button
+                onClick={refreshUsers}
+                className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                刷新用户列表
+              </button>
+              <button
+                onClick={markInactiveUsersOffline}
+                className="bg-orange-500 text-white px-6 py-3 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                标记无活动用户离线
+              </button>
+              <button
+                onClick={performUserCleanup}
+                className="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                执行用户清理
+              </button>
           </div>
 
           {/* 测试消息 */}
@@ -229,7 +273,10 @@ export default function TestRealtime() {
               <li>• 点击&ldquo;添加测试用户&rdquo;将创建一个新用户，您应该看到实时通知</li>
               <li>• 点击&ldquo;发送测试表情&rdquo;将发送一个表情，您应该看到实时通知</li>
               <li>• 点击&ldquo;移除用户&rdquo;将删除一个用户，您应该看到实时通知</li>
+              <li>• 点击&ldquo;标记无活动用户离线&rdquo;将检查长时间无活动的用户并标记为离线</li>
+              <li>• 点击&ldquo;执行用户清理&rdquo;将清理长时间离线的用户</li>
               <li>• 打开多个浏览器标签页测试多用户实时同步</li>
+              <li>• 关闭标签页或最小化窗口测试用户离线状态检测</li>
             </ul>
           </div>
         </div>

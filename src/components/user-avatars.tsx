@@ -182,7 +182,11 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
     }
   }
 
-  const getRoleBorder = (role: User['role']) => {
+  const getRoleBorder = (role: User['role'], isOnline: boolean) => {
+    if (!isOnline) {
+      return 'border-gray-500 shadow-gray-500/30 opacity-60'
+    }
+    
     switch (role) {
       case 'host':
         return 'border-yellow-400 shadow-yellow-400/50'
@@ -206,7 +210,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
     <div className="mb-8">
       <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
         <h3 className="text-white font-medium mb-4 text-center">
-          房间成员 ({users.length})
+          房间成员 ({users.length}) - 在线: {users.filter(u => u.is_online).length}
         </h3>
         
         <div className="flex flex-wrap justify-center gap-3">
@@ -216,7 +220,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
               className="relative cursor-pointer p-2"
               onClick={() => handleUserClick(user)}
             >
-              <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role)} shadow-lg relative`}>
+              <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role, user.is_online)} shadow-lg relative`}>
                 <img
                   src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
                   alt={user.nickname}
@@ -259,14 +263,27 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
                 
                 {/* 离线状态 */}
                 {!user.is_online && (
-                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                    <Lock className="w-4 h-4 text-white" />
+                  <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center">
+                    <div className="text-center">
+                      <Lock className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                      <span className="text-xs text-red-400 font-medium">离线</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 在线状态指示器 */}
+                {user.is_online && (
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                   </div>
                 )}
               </div>
               
-              <p className="text-white text-xs text-center mt-1 truncate max-w-20">
+              <p className={`text-xs text-center mt-1 truncate max-w-20 ${user.is_online ? 'text-white' : 'text-gray-400'}`}>
                 {user.nickname}
+                {!user.is_online && (
+                  <span className="block text-xs text-red-400 font-medium">离线</span>
+                )}
               </p>
             </div>
           ))}
