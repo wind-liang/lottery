@@ -10,6 +10,8 @@ import { EmojiPanel } from '@/components/emoji-panel'
 import { GameStage } from '@/components/game-stage'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { UserSettings } from '@/components/user-settings'
+import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
+import { useRealtime } from '@/lib/use-realtime'
 import { Settings } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
@@ -27,54 +29,46 @@ export default function Home() {
   // 初始化用户和房间
   useEffect(() => {
     initializeApp()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 监听实时数据变化
-  useEffect(() => {
-    if (!room) return
-
-    const userChannel = supabase
-      .channel('users')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'users',
-          filter: `room_id=eq.${room.id}`,
-        },
-        (payload) => {
-          console.log('🔄 用户数据变化:', payload)
-          console.log('🔄 触发fetchUsers刷新')
-          setTimeout(() => {
-            fetchUsers()
-          }, 100) // 稍微延迟确保数据同步
-        }
-      )
-      .subscribe()
-
-    const roomChannel = supabase
-      .channel('rooms')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rooms',
-          filter: `id=eq.${room.id}`,
-        },
-        (payload) => {
-          console.log('房间数据变化:', payload)
-          fetchRoom()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(userChannel)
-      supabase.removeChannel(roomChannel)
+  // 使用实时通信hook
+  const { refreshUsers, refreshRoom } = useRealtime({
+    roomId: room?.id || null,
+    onUsersChange: (updatedUsers) => {
+      console.log('🔄 [实时] 用户列表更新:', updatedUsers.length, '个用户')
+      setUsers(updatedUsers)
+    },
+    onRoomChange: (updatedRoom) => {
+      console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name)
+      setRoom(updatedRoom)
+    },
+    onEmojiReceived: (emojiData) => {
+      console.log('🎭 [实时] 收到表情:', emojiData)
+      addRealtimeNotification({
+        type: 'emoji_sent',
+        message: `${emojiData.nickname} 发送了表情`,
+        emoji: emojiData.emoji
+      })
+    },
+    onUserJoined: (user) => {
+      console.log('🆕 [实时] 用户加入:', user.nickname)
+      addRealtimeNotification({
+        type: 'user_joined',
+        message: `${user.nickname} 加入了房间`
+      })
+    },
+    onUserLeft: (userId) => {
+      console.log('👋 [实时] 用户离开:', userId)
+      // 从当前用户列表中找到离开的用户
+      const leftUser = users.find(u => u.id === userId)
+      if (leftUser) {
+        addRealtimeNotification({
+          type: 'user_left',
+          message: `${leftUser.nickname} 离开了房间`
+        })
+      }
     }
-  }, [room])
+  })
 
   // 定期清理过期表情和刷新UI
   useEffect(() => {
@@ -87,12 +81,12 @@ export default function Home() {
         new Date(user.emoji_expires_at) <= new Date()
       )) {
         console.log('🔄 检测到过期表情，刷新用户界面')
-        fetchUsers()
+        refreshUsers()
       }
     }, 1000) // 每秒检查一次
 
     return () => clearInterval(cleanupInterval)
-  }, [users])
+  }, [users, refreshUsers])
 
   const initializeApp = async () => {
     try {
@@ -127,37 +121,8 @@ export default function Home() {
       setRoom(roomData)
       console.log('✅ 状态设置完成')
       
-      // 立即获取房间内的所有用户
-      console.log('🔍 开始获取用户列表...')
-      const { data: roomUsers, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('room_id', roomData.id)
-        .eq('is_online', true)
-        .order('created_at', { ascending: true })
-
-      if (fetchError) {
-        console.error('❌ 获取用户列表失败:', fetchError)
-        throw fetchError
-      }
-      
-      console.log('✅ 用户列表获取成功:', roomUsers)
-      console.log('📊 用户数量:', roomUsers?.length || 0)
-      
-      if (roomUsers && roomUsers.length > 0) {
-        console.log('👥 用户详情:', roomUsers.map(u => ({
-          id: u.id,
-          nickname: u.nickname,
-          role: u.role,
-          avatar_url: u.avatar_url,
-          is_online: u.is_online,
-          current_emoji: u.current_emoji,
-          emoji_expires_at: u.emoji_expires_at
-        })))
-      }
-      
-      setUsers(roomUsers || [])
-      console.log('✅ 初始化完成')
+      // 用户列表将由useRealtime hook自动管理
+      console.log('✅ 初始化完成，等待实时数据同步...')
     } catch (err) {
       console.error('❌ 初始化应用失败:', err)
       setError(err instanceof Error ? err.message : '初始化失败')
@@ -347,63 +312,7 @@ export default function Home() {
     }
   }
 
-  const fetchUsers = async () => {
-    if (!room) {
-      console.log('⚠️ 房间信息缺失，跳过用户获取')
-      return
-    }
-
-    try {
-      console.log('🔍 获取房间用户列表...', room.id)
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('room_id', room.id)
-        .eq('is_online', true)
-        .order('created_at', { ascending: true })
-
-      if (error) {
-        console.error('❌ 获取用户列表失败:', error)
-        throw error
-      }
-      
-      console.log('✅ 用户列表获取成功:', data)
-      console.log('📊 用户数量:', data?.length || 0)
-      
-      if (data && data.length > 0) {
-        console.log('👥 用户详情:', data.map(u => ({
-          id: u.id,
-          nickname: u.nickname,
-          role: u.role,
-          avatar_url: u.avatar_url,
-          is_online: u.is_online,
-          current_emoji: u.current_emoji,
-          emoji_expires_at: u.emoji_expires_at
-        })))
-      }
-      
-      setUsers(data || [])
-    } catch (error) {
-      console.error('❌ 获取用户列表失败:', error)
-    }
-  }
-
-  const fetchRoom = async () => {
-    if (!room) return
-
-    try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select('*')
-        .eq('id', room.id)
-        .single()
-
-      if (error) throw error
-      setRoom(data)
-    } catch (error) {
-      console.error('获取房间信息失败:', error)
-    }
-  }
+  // fetchUsers和fetchRoom函数已经由useRealtime hook管理，不再需要单独定义
 
   const updateUserRole = async (userId: string, role: User['role']) => {
     try {
@@ -478,6 +387,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 to-pink-600">
+      {/* 实时通知 */}
+      <RealtimeNotifications />
+      
       {/* 游戏阶段指示器 */}
       <GameStage stage={room.stage} />
       
@@ -519,7 +431,7 @@ export default function Home() {
             room={room}
             currentUser={currentUser}
             users={users}
-            onStageChange={() => fetchRoom()}
+            onStageChange={() => refreshRoom()}
           />
           
           {/* 表情面板 */}
@@ -528,7 +440,7 @@ export default function Home() {
             roomId={room.id}
             onEmojiSent={() => {
               console.log('🎯 收到表情发送回调，刷新用户数据')
-              fetchUsers()
+              refreshUsers()
             }}
           />
 
