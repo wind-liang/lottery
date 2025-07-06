@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserPlus, UserMinus, Smile } from 'lucide-react'
+import { UserPlus, UserMinus, Smile, UserX } from 'lucide-react'
 
 interface Notification {
   id: string
-  type: 'user_joined' | 'user_left' | 'emoji_sent'
+  type: 'user_joined' | 'user_left' | 'emoji_sent' | 'user_kicked'
   message: string
   timestamp: Date
   emoji?: string
@@ -41,6 +41,8 @@ export function RealtimeNotifications({ className = '' }: RealtimeNotificationsP
         return <UserPlus className="w-4 h-4 text-green-500" />
       case 'user_left':
         return <UserMinus className="w-4 h-4 text-red-500" />
+      case 'user_kicked':
+        return <UserX className="w-4 h-4 text-red-600" />
       case 'emoji_sent':
         return <Smile className="w-4 h-4 text-purple-500" />
       default:
@@ -55,6 +57,8 @@ export function RealtimeNotifications({ className = '' }: RealtimeNotificationsP
         return 'bg-green-50 border-green-200 text-green-800'
       case 'user_left':
         return 'bg-red-50 border-red-200 text-red-800'
+      case 'user_kicked':
+        return 'bg-red-100 border-red-300 text-red-900'
       case 'emoji_sent':
         return 'bg-purple-50 border-purple-200 text-purple-800'
       default:

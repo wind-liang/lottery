@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Crown, User, Users, Lock, X } from 'lucide-react'
+import { Crown, User, Users, Lock, X, UserX, AlertTriangle } from 'lucide-react'
 import { GameLogic } from '@/lib/game-logic'
 import type { Database } from '@/lib/supabase'
 
@@ -12,6 +12,7 @@ interface UserAvatarsProps {
   currentUser: User
   onUserClick: (user: User) => void
   onRoleChange: (userId: string, role: User['role']) => void
+  onKickUser: (userId: string) => void
 }
 
 interface RoleChangeModalProps {
@@ -19,11 +20,13 @@ interface RoleChangeModalProps {
   currentUser: User
   onClose: () => void
   onRoleChange: (userId: string, role: User['role']) => void
+  onKickUser: (userId: string) => void
 }
 
-function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChangeModalProps) {
+function RoleChangeModal({ user, currentUser, onClose, onRoleChange, onKickUser }: RoleChangeModalProps) {
   const [password, setPassword] = useState('')
   const [showPasswordInput, setShowPasswordInput] = useState(false)
+  const [showKickConfirm, setShowKickConfirm] = useState(false)
   const [error, setError] = useState('')
 
   const handleBecomeHost = () => {
@@ -44,8 +47,14 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChang
     onClose()
   }
 
+  const handleKickUser = () => {
+    onKickUser(user.id)
+    onClose()
+  }
+
   const isHost = currentUser.role === 'host'
   const canChangeRole = isHost || (user.id === currentUser.id && user.role === 'audience')
+  const canKickUser = isHost && user.id !== currentUser.id // 主持人不能踢出自己
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -109,6 +118,35 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChang
               </button>
             </div>
           </div>
+        ) : showKickConfirm ? (
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 p-4 bg-red-50 rounded-lg">
+              <AlertTriangle className="w-8 h-8 text-red-500 flex-shrink-0" />
+              <div>
+                <h4 className="font-medium text-red-800">确认踢出用户</h4>
+                <p className="text-sm text-red-600 mt-1">
+                  您确定要踢出用户 &ldquo;<strong>{user.nickname}</strong>&rdquo; 吗？
+                </p>
+                <p className="text-xs text-red-500 mt-2">
+                  此操作将立即将用户从房间中移除，用户需要重新加入房间。
+                </p>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowKickConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleKickUser}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                确认踢出
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-3">
             {canChangeRole && (
@@ -146,6 +184,17 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChang
               </>
             )}
             
+            {/* 踢出用户按钮 */}
+            {canKickUser && (
+              <button
+                onClick={() => setShowKickConfirm(true)}
+                className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center justify-center space-x-2"
+              >
+                <UserX className="w-4 h-4" />
+                <span>踢出用户</span>
+              </button>
+            )}
+            
             <button
               onClick={onClose}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
@@ -159,7 +208,7 @@ function RoleChangeModal({ user, currentUser, onClose, onRoleChange }: RoleChang
   )
 }
 
-export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: UserAvatarsProps) {
+export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onKickUser }: UserAvatarsProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
   const handleUserClick = (user: User) => {
@@ -296,6 +345,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange }: U
           currentUser={currentUser}
           onClose={() => setSelectedUser(null)}
           onRoleChange={onRoleChange}
+          onKickUser={onKickUser}
         />
       )}
     </div>

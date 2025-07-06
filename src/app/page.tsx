@@ -340,6 +340,82 @@ export default function Home() {
     }
   }
 
+  const kickUser = async (userId: string) => {
+    try {
+      console.log('🚪 开始踢出用户:', userId)
+      
+      // 检查房间是否存在
+      if (!room) {
+        console.error('❌ 房间不存在')
+        return
+      }
+      
+      // 找到被踢出的用户
+      const targetUser = users.find(u => u.id === userId)
+      if (!targetUser) {
+        console.error('❌ 找不到要踢出的用户')
+        return
+      }
+
+      // 开始事务操作
+      // 1. 从抽奖参与者表中移除用户
+      const { error: removeParticipantError } = await supabase
+        .from('lottery_participants')
+        .delete()
+        .eq('user_id', userId)
+        .eq('room_id', room.id)
+
+      if (removeParticipantError) {
+        console.error('❌ 移除抽奖参与者失败:', removeParticipantError)
+      }
+
+      // 2. 清理用户的表情记录
+      const { error: removeEmojiError } = await supabase
+        .from('emojis')
+        .delete()
+        .eq('user_id', userId)
+        .eq('room_id', room.id)
+
+      if (removeEmojiError) {
+        console.error('❌ 清理表情记录失败:', removeEmojiError)
+      }
+
+      // 3. 将用户从房间中移除并设置为离线状态
+      const { error: kickUserError } = await supabase
+        .from('users')
+        .update({ 
+          room_id: null,
+          is_online: false,
+          role: 'audience',
+          order_number: null,
+          selected_reward: null,
+          current_emoji: null,
+          emoji_expires_at: null
+        })
+        .eq('id', userId)
+
+      if (kickUserError) {
+        console.error('❌ 踢出用户失败:', kickUserError)
+        alert('踢出用户失败，请重试')
+        return
+      }
+
+      console.log('✅ 用户踢出成功:', targetUser.nickname)
+      
+      // 显示通知
+      addRealtimeNotification({
+        type: 'user_kicked',
+        message: `${targetUser.nickname} 已被踢出房间`
+      })
+
+      // 用户列表将通过实时订阅自动更新
+      
+    } catch (error) {
+      console.error('❌ 踢出用户异常:', error)
+      alert('踢出用户时发生错误，请重试')
+    }
+  }
+
   const updateUserInfo = async (updatedUser: User) => {
     try {
       console.log('🔄 更新用户信息:', updatedUser)
@@ -432,6 +508,7 @@ export default function Home() {
               console.log('用户点击:', user)
             }}
             onRoleChange={updateUserRole}
+            onKickUser={kickUser}
           />
           
           {/* 游戏控制区域 */}
