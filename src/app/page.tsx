@@ -38,6 +38,15 @@ export default function Home() {
     onUsersChange: (updatedUsers) => {
       console.log('🔄 [实时] 用户列表更新:', updatedUsers.length, '个用户')
       setUsers(updatedUsers)
+      
+      // 同步更新currentUser状态
+      if (currentUser) {
+        const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)
+        if (updatedCurrentUser) {
+          console.log('🔄 [实时] 当前用户信息同步更新:', updatedCurrentUser.role)
+          setCurrentUser(updatedCurrentUser)
+        }
+      }
     },
     onRoomChange: (updatedRoom) => {
       console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name)

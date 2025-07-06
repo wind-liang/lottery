@@ -51,9 +51,13 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
   }
 
   const handleParticipate = async () => {
-    if (currentUser.role !== 'player') return
+    if (currentUser.role !== 'player') {
+      console.log('❌ 用户角色不是玩家，无法参与抽奖:', currentUser.role)
+      return
+    }
 
     try {
+      console.log('🎯 玩家参与抽奖:', currentUser.nickname)
       const { error } = await supabase
         .from('lottery_participants')
         .insert({
@@ -62,14 +66,23 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
         })
 
       if (error) throw error
+      console.log('✅ 成功参与抽奖')
       await fetchParticipants()
     } catch (error) {
-      console.error('参与抽奖失败:', error)
+      console.error('❌ 参与抽奖失败:', error)
     }
   }
 
   const isParticipating = participants.some(p => p.id === currentUser.id)
   const canParticipate = currentUser.role === 'player' && stage === 'waiting' && !isParticipating
+  
+  // 调试信息
+  console.log('🎯 [抽奖箱] 状态检查:', {
+    currentUserRole: currentUser.role,
+    stage,
+    isParticipating,
+    canParticipate
+  })
 
   return (
     <div className="relative mb-8">
