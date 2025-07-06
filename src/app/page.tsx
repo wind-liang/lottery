@@ -498,7 +498,7 @@ export default function Home() {
       </div>
       
       {/* 主游戏区域 */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-20">
         <div className="max-w-md mx-auto">
           {/* 抽奖箱 */}
           <LotteryBox 

@@ -88,13 +88,13 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
     <div className="relative mb-8">
       {/* 抽奖箱 */}
       <motion.div
-        className="relative mx-auto w-32 h-32 cursor-pointer"
+        className="relative mx-auto w-32 h-32 cursor-pointer z-10"
         onClick={toggleBox}
         animate={isShaking ? { rotate: [-2, 2, -2, 2, 0] } : {}}
         transition={{ duration: 0.5 }}
       >
         {/* 箱子主体 */}
-        <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl border-4 border-yellow-300 shadow-lg relative overflow-hidden">
+        <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl border-4 border-yellow-300 shadow-lg relative overflow-visible">
           {/* 箱子装饰 */}
           <div className="absolute inset-2 border-2 border-yellow-200 rounded-lg"></div>
           
@@ -105,7 +105,7 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
 
           {/* 参与者数量指示器 */}
           {participants.length > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold z-20">
               {participants.length}
             </div>
           )}
