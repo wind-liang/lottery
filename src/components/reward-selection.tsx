@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
-import { Crown, Clock, Check } from 'lucide-react'
+import { Crown, Clock, Check, Gift } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -163,21 +163,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     }
   }, [selectionInProgress, currentSelector?.id, currentUser.id])
 
-  const handleStartSelection = async () => {
-    try {
-      setTimeLeft(30)
-      
-      // 开始奖励选择流程
-      const success = await GameLogic.startRewardSelection(room.id)
-      if (success) {
-        onStageChange()
-      } else {
-        console.error('开始奖励选择失败')
-      }
-    } catch (error) {
-      console.error('开始选择失败:', error)
-    }
-  }
+
 
   const handleRewardSelect = (rewardId: string) => {
     console.log('🎯 [奖励选择] 点击奖励:', rewardId)
@@ -353,10 +339,13 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         ))}
       </div>
 
-      {/* 当前选择者信息 */}
+
+
+      {/* 当前选择者信息 - 只在选择流程开始后显示 */}
       {selectionInProgress && currentSelector && (
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
           <div className="flex items-center justify-between">
+            {/* 左侧显示当前选择者头像 - 根据PRD要求 */}
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full border-2 border-blue-400">
                 <img
@@ -387,86 +376,114 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         </div>
       )}
 
-      {/* 奖励列表 */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-bold text-white text-center">奖励选择</h3>
-        
-        <div className="grid gap-4">
-          {rewards.map((reward) => (
-            <motion.div
-              key={reward.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`
-                bg-white/10 backdrop-blur-sm rounded-2xl p-4 border-2 transition-all duration-300
-                ${selectedReward === reward.id ? 'border-blue-400 bg-blue-400/20' : 'border-white/20'}
-                ${reward.selected_by ? 'opacity-50' : ''}
-                ${canSelectReward && !reward.selected_by ? 'cursor-pointer hover:border-blue-300' : ''}
-              `}
-              onClick={() => handleRewardSelect(reward.id)}
-            >
-              <div className="flex items-center space-x-4">
-                {/* 奖励图片 */}
-                <div className="w-16 h-16 rounded-lg overflow-hidden bg-white/20">
-                  <img
-                    src={getRewardImage(reward)}
-                    alt={reward.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* 奖励信息 */}
-                <div className="flex-1">
-                  <h4 className="text-white font-medium">{reward.name}</h4>
-                  <p className="text-white/70 text-sm">{reward.description}</p>
-                </div>
-                
-                {/* 选择状态 */}
-                <div className="flex items-center space-x-2">
-                  {reward.selected_by ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 rounded-full border-2 border-green-400 bg-green-400/20">
-                        <img
-                          src={users.find(u => u.id === reward.selected_by)?.avatar_url || ''}
-                          alt=""
-                          className="w-full h-full object-cover rounded-full"
-                        />
-                      </div>
+      {/* 奖励列表 - 只有在选择流程开始后才显示 */}
+      {selectionInProgress ? (
+        <div className="space-y-4">
+          <h3 className="text-xl font-bold text-white text-center">奖励选择</h3>
+          
+          {/* 横向滚动的奖励列表 */}
+          <div className="overflow-x-auto pb-4">
+            <div className="flex space-x-4 min-w-max">
+              {rewards.map((reward) => (
+                <motion.div
+                  key={reward.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`
+                    bg-white/10 backdrop-blur-sm rounded-2xl p-4 border-2 transition-all duration-300 flex-shrink-0 w-48
+                    ${selectedReward === reward.id ? 'border-blue-400 bg-blue-400/20' : 'border-white/20'}
+                    ${reward.selected_by ? 'opacity-50' : ''}
+                    ${canSelectReward && !reward.selected_by ? 'cursor-pointer hover:border-blue-300' : ''}
+                  `}
+                  onClick={() => handleRewardSelect(reward.id)}
+                >
+                  <div className="flex flex-col items-center space-y-3">
+                    {/* 奖励图片 */}
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-white/20">
+                      <img
+                        src={getRewardImage(reward)}
+                        alt={reward.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  ) : (
-                    <>
-                      {/* 单选框 - 仅玩家可见 */}
-                      {currentUser.role === 'player' && (
-                        <div className={`
-                          w-6 h-6 rounded-full border-2 border-white/50 flex items-center justify-center
-                          ${selectedReward === reward.id ? 'bg-blue-400 border-blue-400' : ''}
-                        `}>
-                          {selectedReward === reward.id && (
-                            <Check className="w-4 h-4 text-white" />
-                          )}
+                    
+                    {/* 奖励信息 */}
+                    <div className="text-center">
+                      <h4 className="text-white font-medium text-sm">{reward.name}</h4>
+                      <p className="text-white/70 text-xs mt-1">{reward.description}</p>
+                    </div>
+                    
+                    {/* 选择状态 */}
+                    <div className="flex items-center justify-center">
+                      {reward.selected_by ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 rounded-full border-2 border-green-400 bg-green-400/20">
+                            <img
+                              src={users.find(u => u.id === reward.selected_by)?.avatar_url || ''}
+                              alt=""
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          </div>
                         </div>
+                      ) : (
+                        <>
+                          {/* 单选框 - 仅玩家可见 */}
+                          {currentUser.role === 'player' && (
+                            <div className={`
+                              w-6 h-6 rounded-full border-2 border-white/50 flex items-center justify-center
+                              ${selectedReward === reward.id ? 'bg-blue-400 border-blue-400' : ''}
+                            `}>
+                              {selectedReward === reward.id && (
+                                <Check className="w-4 h-4 text-white" />
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* 控制按钮 */}
-      <div className="space-y-3">
-        {currentUser.role === 'host' && !selectionInProgress && (
-          <button
-            onClick={handleStartSelection}
-            className="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-700"
+      ) : (
+        /* 等待主持人开始选择的状态 */
+        <div className="space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 text-center"
           >
-            开始奖励选择
-          </button>
-        )}
-        
-        {isMyTurn && selectedReward && (
+            <motion.div
+              animate={{ 
+                scale: [1, 1.1, 1],
+                opacity: [0.7, 1, 0.7]
+              }}
+              transition={{ 
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="mb-4"
+            >
+              <Gift className="w-16 h-16 text-yellow-400 mx-auto" />
+            </motion.div>
+            
+            <h3 className="text-xl font-bold text-white mb-2">奖励选择阶段</h3>
+            <p className="text-white/70 text-sm mb-4">
+              恭喜各位获得名次！
+            </p>
+            <p className="text-white/80 text-base">
+              等待主持人开始奖励选择流程...
+            </p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 控制按钮 - 只显示玩家选择时的确认按钮 */}
+      {isMyTurn && selectedReward && (
+        <div className="space-y-3">
           <button
             onClick={() => {
               console.log('🖱️ [确认选择按钮] 被点击')
@@ -476,8 +493,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
           >
             确认选择
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 确认弹窗 */}
       <AnimatePresence>

@@ -569,12 +569,27 @@ export default function Home() {
           {/* 根据游戏阶段显示不同内容 */}
           {room.stage === 'reward_selection' ? (
             /* 奖励选择阶段 */
-            <RewardSelection
-              room={room}
-              currentUser={currentUser}
-              users={users}
-              onStageChange={() => refreshRoom()}
-            />
+            <>
+              {/* 奖励选择组件 */}
+              <RewardSelection
+                room={room}
+                currentUser={currentUser}
+                users={users}
+                onStageChange={() => refreshRoom()}
+              />
+              
+              {/* 用户头像区域 - 和第一阶段相同 */}
+              <UserAvatars
+                users={users}
+                currentUser={currentUser}
+                onUserClick={(user: User) => {
+                  // 处理用户点击事件
+                  console.log('用户点击:', user)
+                }}
+                onRoleChange={updateUserRole}
+                onKickUser={kickUser}
+              />
+            </>
           ) : (
             <>
               {/* 抽奖箱 */}
