@@ -289,11 +289,11 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
           房间成员 ({users.length}) - 在线: {users.filter(u => u.is_online).length}
         </h3>
         
-        <div className="flex flex-wrap justify-center gap-3 p-2">
+        <div className="flex flex-wrap justify-center gap-2 p-1">
           {nonHostUsers.map((user) => (
             <div
               key={user.id}
-              className="relative cursor-pointer p-3"
+              className="relative cursor-pointer p-1"
               onClick={() => handleUserClick(user)}
             >
               <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role, user.is_online)} shadow-lg relative`}>
