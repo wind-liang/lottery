@@ -710,25 +710,7 @@ export default function Home() {
             onWinnerDrawn={handleWinnerDrawn}
           />
 
-          {/* 测试绝地翻盘弹窗按钮 - 只显示给主持人 */}
-          {currentUser.role === 'host' && (
-            <div className="mt-4">
-              <button
-                onClick={async () => {
-                  console.log('🖱️ [测试弹窗] 手动触发绝地翻盘弹窗')
-                  const lastFive = await GameLogic.getLastFivePlayers(room.id)
-                  console.log('🖱️ [测试弹窗] 获取到的最后5名玩家:', lastFive)
-                  setLastFivePlayers(lastFive)
-                  setShowComebackModal(true)
-                  setComebackModalShown(true) // 标记为已显示，避免自动重复触发
-                  console.log('🖱️ [测试弹窗] 弹窗已触发')
-                }}
-                className="w-full px-4 py-2 bg-yellow-500/80 backdrop-blur-sm text-white rounded-lg font-medium hover:bg-yellow-600/80 border border-yellow-400/50"
-              >
-                🧪 测试绝地翻盘弹窗
-              </button>
-            </div>
-          )}
+
           
           {/* 表情面板 */}
           <EmojiPanel
