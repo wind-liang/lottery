@@ -93,16 +93,7 @@ export default function Home() {
     console.log('🏆 [实时] 检测到获奖者:', winner)
     // 显示获奖弹窗
     setLotteryWinner(winner)
-    // 同时显示小通知
-    const isCurrentUser = winner.userId === currentUser?.id
-    const message = isCurrentUser 
-      ? `恭喜你获得了第${winner.orderNumber}名！`
-      : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`
-    
-    addRealtimeNotification({
-      type: 'lottery_winner',
-      message
-    })
+    // 不再显示顶部小通知，只显示弹窗
   }, [currentUser])
 
   // 使用实时通信hook
