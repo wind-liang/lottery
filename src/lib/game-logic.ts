@@ -324,7 +324,7 @@ export class GameLogic {
         .select('*')
         .eq('room_id', roomId)
         .not('order_number', 'is', null)
-        .order('order_number', { ascending: true })
+        .order('order_number', { ascending: false })
         .limit(5)
       
       if (error) throw error
@@ -332,6 +332,92 @@ export class GameLogic {
     } catch (error) {
       console.error('获取最后5名玩家失败:', error)
       return []
+    }
+  }
+
+  // 创建绝地翻盘抽奖箱（按权重添加玩家）
+  static async setupFinalLotteryBox(roomId: string): Promise<boolean> {
+    try {
+      // 清空现有的抽奖参与者
+      await supabase
+        .from('lottery_participants')
+        .delete()
+        .eq('room_id', roomId)
+      
+      // 获取最后5名玩家
+      const lastFivePlayers = await this.getLastFivePlayers(roomId)
+      
+      if (lastFivePlayers.length === 0) {
+        console.log('没有找到参与绝地翻盘的玩家')
+        return false
+      }
+      
+      // 按权重添加玩家到抽奖箱
+      const lotteryEntries = []
+      for (let i = 0; i < lastFivePlayers.length; i++) {
+        const player = lastFivePlayers[i]
+        const weight = lastFivePlayers.length - i // 最后一名权重最高
+        
+        // 添加对应权重数量的条目
+        for (let j = 0; j < weight; j++) {
+          lotteryEntries.push({
+            room_id: roomId,
+            user_id: player.id,
+            is_drawn: false
+          })
+        }
+      }
+      
+      // 批量插入抽奖条目
+      const { error } = await supabase
+        .from('lottery_participants')
+        .insert(lotteryEntries)
+      
+      if (error) throw error
+      
+      console.log('绝地翻盘抽奖箱设置成功，总条目数:', lotteryEntries.length)
+      return true
+    } catch (error) {
+      console.error('设置绝地翻盘抽奖箱失败:', error)
+      return false
+    }
+  }
+
+  // 绝地翻盘阶段抽奖（不设置排名）
+  static async drawFinalLotteryWinner(roomId: string): Promise<User | null> {
+    try {
+      // 获取未被抽中的参与者
+      const { data: participants, error } = await supabase
+        .from('lottery_participants')
+        .select(`
+          *,
+          users (*)
+        `)
+        .eq('room_id', roomId)
+        .eq('is_drawn', false)
+      
+      if (error) throw error
+      if (!participants || participants.length === 0) return null
+      
+      // 随机选择一个参与者
+      const randomIndex = Math.floor(Math.random() * participants.length)
+      const selectedParticipant = participants[randomIndex]
+      
+      // 标记所有该用户的条目为已抽中（因为绝地翻盘只抽一次）
+      await supabase
+        .from('lottery_participants')
+        .update({
+          is_drawn: true,
+          drawn_at: new Date().toISOString()
+        })
+        .eq('room_id', roomId)
+        .eq('user_id', selectedParticipant.user_id)
+      
+      console.log('绝地翻盘获胜者:', selectedParticipant.users?.nickname)
+      return selectedParticipant.users as User
+    } catch (error) {
+      console.error('绝地翻盘抽奖失败:', error)
+      return null
     }
   }
 

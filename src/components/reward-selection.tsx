@@ -85,7 +85,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         onStageChange()
       } else {
         console.log('🎉 [随机选择] 所有人都选择完毕，进入下一阶段')
-        // 所有人都选择完毕，清除当前选择者，进入下一阶段
+        // 所有人都选择完毕，清除当前选择者
         await supabase
           .from('rooms')
           .update({ 
@@ -94,9 +94,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
           })
           .eq('id', room.id)
         
-        // 进入绝地翻盘阶段
-        await GameLogic.updateRoomStage(room.id, 'final_lottery')
-        onStageChange()
+        console.log('🎉 [随机选择] 所有人都选择完毕，流程完成')
       }
     } catch (error) {
       console.error('随机选择失败:', error)
@@ -275,7 +273,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
             selectedReward: p.selected_reward
           })))
           
-          // 所有人都选择完毕，清除当前选择者，进入下一阶段
+          // 所有人都选择完毕，清除当前选择者
           await supabase
             .from('rooms')
             .update({ 
@@ -284,9 +282,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
             })
             .eq('id', room.id)
           
-          // 进入绝地翻盘阶段
-          await GameLogic.updateRoomStage(room.id, 'final_lottery')
-          onStageChange()
+          console.log('🎉 [奖励选择] 所有人都选择完毕，流程完成')
         }
       } else {
         console.error('❌ [奖励选择] 选择奖励失败')
@@ -646,6 +642,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         </div>
       )}
 
+
+
       {/* 确认弹窗 */}
       <AnimatePresence>
         {showConfirm && selectedReward && (
@@ -712,6 +710,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   )
 } 

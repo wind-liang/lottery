@@ -163,11 +163,57 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     
     setIsLoading(true)
     try {
+      // 设置绝地翻盘抽奖箱
+      const success = await GameLogic.setupFinalLotteryBox(room.id)
+      if (!success) {
+        alert('设置绝地翻盘抽奖箱失败')
+        return
+      }
+      
       await GameLogic.updateRoomStage(room.id, 'final_lottery')
       onStageChange()
     } catch (error) {
       console.error('开始绝地翻盘失败:', error)
       alert('开始绝地翻盘失败，请重试')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleFinalLotteryDraw = async () => {
+    if (!isHost) return
+    
+    setIsLoading(true)
+    try {
+      // 抽取绝地翻盘获胜者
+      const winner = await GameLogic.drawFinalLotteryWinner(room.id)
+      if (!winner) {
+        alert('没有参与者可以抽取')
+        return
+      }
+
+      console.log('🎯 [绝地翻盘] 抽中用户:', winner.nickname)
+
+      // 触发获奖通知（绝地翻盘获胜者不需要order_number）
+      if (onWinnerDrawn) {
+        onWinnerDrawn({
+          userId: winner.id,
+          nickname: winner.nickname,
+          orderNumber: 0, // 绝地翻盘获胜者特殊标识
+          avatar: winner.avatar_url || undefined
+        })
+      }
+
+      // 等待5秒后进入完结阶段
+      setTimeout(async () => {
+        await GameLogic.updateRoomStage(room.id, 'finished')
+        onStageChange()
+      }, 5000)
+
+      onStageChange()
+    } catch (error) {
+      console.error('绝地翻盘抽奖失败:', error)
+      alert('绝地翻盘抽奖失败，请重试')
     } finally {
       setIsLoading(false)
     }
@@ -296,7 +342,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 onClick={() => confirmAction(
                   '抽取绝地翻盘奖',
                   '确定要抽取绝地翻盘奖吗？',
-                  handleStartLottery
+                  handleFinalLotteryDraw
                 )}
                 disabled={isLoading}
                 className="w-full px-4 py-3 bg-gradient-to-r from-red-400 to-red-600 text-white rounded-lg font-medium hover:from-red-500 hover:to-red-700 disabled:opacity-50"
