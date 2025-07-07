@@ -13,7 +13,7 @@ export interface Database {
           room_id: string | null
           joined_at: string
           order_number: number | null
-          selected_reward: number | null
+          selected_reward: string | null
           is_online: boolean
           current_emoji: string | null
           emoji_expires_at: string | null
@@ -26,7 +26,7 @@ export interface Database {
           room_id?: string | null
           joined_at?: string
           order_number?: number | null
-          selected_reward?: number | null
+          selected_reward?: string | null
           is_online?: boolean
           current_emoji?: string | null
           emoji_expires_at?: string | null
@@ -39,7 +39,7 @@ export interface Database {
           room_id?: string | null
           joined_at?: string
           order_number?: number | null
-          selected_reward?: number | null
+          selected_reward?: string | null
           is_online?: boolean
           current_emoji?: string | null
           emoji_expires_at?: string | null

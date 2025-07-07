@@ -12,6 +12,7 @@ import { LoadingSpinner } from '@/components/loading-spinner'
 import { UserSettings } from '@/components/user-settings'
 import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
 import { LotteryWinnerNotification } from '@/components/lottery-winner-notification'
+import { RewardSelection } from '@/components/reward-selection'
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
 import { Settings } from 'lucide-react'
@@ -558,25 +559,38 @@ export default function Home() {
       {/* 主游戏区域 */}
       <div className="container mx-auto px-4 py-8 relative z-20">
         <div className="max-w-md mx-auto">
-          {/* 抽奖箱 */}
-          <LotteryBox 
-            roomId={room.id}
-            stage={room.stage}
-            currentUser={currentUser}
-            users={users}
-          />
-          
-          {/* 用户头像区域 */}
-          <UserAvatars
-            users={users}
-            currentUser={currentUser}
-            onUserClick={(user: User) => {
-              // 处理用户点击事件
-              console.log('用户点击:', user)
-            }}
-            onRoleChange={updateUserRole}
-            onKickUser={kickUser}
-          />
+          {/* 根据游戏阶段显示不同内容 */}
+          {room.stage === 'reward_selection' ? (
+            /* 奖励选择阶段 */
+            <RewardSelection
+              room={room}
+              currentUser={currentUser}
+              users={users}
+              onStageChange={() => refreshRoom()}
+            />
+          ) : (
+            <>
+              {/* 抽奖箱 */}
+              <LotteryBox 
+                roomId={room.id}
+                stage={room.stage}
+                currentUser={currentUser}
+                users={users}
+              />
+              
+              {/* 用户头像区域 */}
+              <UserAvatars
+                users={users}
+                currentUser={currentUser}
+                onUserClick={(user: User) => {
+                  // 处理用户点击事件
+                  console.log('用户点击:', user)
+                }}
+                onRoleChange={updateUserRole}
+                onKickUser={kickUser}
+              />
+            </>
+          )}
           
           {/* 游戏控制区域 */}
           <GameControls

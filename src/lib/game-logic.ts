@@ -168,24 +168,151 @@ export class GameLogic {
   // 选择奖励
   static async selectReward(userId: string, rewardId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      console.log('🎯 [selectReward] 开始选择奖励:', { userId, rewardId })
+      
+      // 先查询用户信息
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('id, nickname, selected_reward')
+        .eq('id', userId)
+        .single()
+      
+      if (userError) {
+        console.error('🎯 [selectReward] 查询用户失败:', userError)
+        throw userError
+      }
+      
+      console.log('🎯 [selectReward] 用户信息:', user)
+      
+      // 更新奖励表
+      const { error: rewardError } = await supabase
         .from('rewards')
         .update({ selected_by: userId })
         .eq('id', rewardId)
         .is('selected_by', null) // 确保奖励还没被选择
       
-      if (error) throw error
+      if (rewardError) {
+        console.error('🎯 [selectReward] 更新奖励表失败:', rewardError)
+        throw rewardError
+      }
+      
+      console.log('🎯 [selectReward] 奖励表更新成功')
       
       // 更新用户的选择记录
-      await supabase
+      const { error: userUpdateError } = await supabase
         .from('users')
-        .update({ selected_reward: parseInt(rewardId) })
+        .update({ selected_reward: rewardId })
         .eq('id', userId)
+      
+      if (userUpdateError) {
+        console.error('🎯 [selectReward] 更新用户失败:', userUpdateError)
+        throw userUpdateError
+      }
+      
+      console.log('🎯 [selectReward] 用户表更新成功')
+      
+      // 验证更新结果
+      const { data: updatedUser, error: verifyError } = await supabase
+        .from('users')
+        .select('id, nickname, selected_reward')
+        .eq('id', userId)
+        .single()
+      
+      if (verifyError) {
+        console.error('🎯 [selectReward] 验证更新失败:', verifyError)
+      } else {
+        console.log('🎯 [selectReward] 验证更新结果:', updatedUser)
+      }
       
       return true
     } catch (error) {
       console.error('选择奖励失败:', error)
       return false
+    }
+  }
+
+  // 开始奖励选择流程
+  static async startRewardSelection(roomId: string): Promise<boolean> {
+    try {
+      // 获取有排序的玩家列表
+      const { data: players, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('role', 'player')
+        .not('order_number', 'is', null)
+        .order('order_number', { ascending: true })
+      
+      if (error) throw error
+      
+      if (!players || players.length === 0) {
+        console.error('没有找到有排序的玩家')
+        return false
+      }
+      
+      // 设置第一个玩家为当前选择者
+      const firstPlayer = players[0]
+      const { error: updateError } = await supabase
+        .from('rooms')
+        .update({ 
+          current_selector: firstPlayer.id,
+          selection_timeout: new Date(Date.now() + 30000).toISOString()
+        })
+        .eq('id', roomId)
+      
+      if (updateError) throw updateError
+      
+      return true
+    } catch (error) {
+      console.error('开始奖励选择失败:', error)
+      return false
+    }
+  }
+
+  // 获取下一个选择者
+  static async getNextSelector(roomId: string): Promise<User | null> {
+    try {
+      console.log('🔍 [getNextSelector] 开始查找下一个选择者，房间ID:', roomId)
+      
+      const { data: players, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('role', 'player')
+        .not('order_number', 'is', null)
+        .order('order_number', { ascending: true })
+      
+      if (error) {
+        console.error('🔍 [getNextSelector] 查询玩家失败:', error)
+        throw error
+      }
+      
+      console.log('🔍 [getNextSelector] 找到的玩家列表:', players?.map(p => ({
+        id: p.id,
+        nickname: p.nickname,
+        orderNumber: p.order_number,
+        selectedReward: p.selected_reward,
+        hasSelected: !!p.selected_reward
+      })))
+      
+      // 找到第一个还没有选择奖励的玩家
+      const nextPlayer = players?.find(player => {
+        const hasSelected = !!player.selected_reward
+        console.log(`🔍 [getNextSelector] 检查玩家 ${player.nickname} (Order: ${player.order_number}): hasSelected=${hasSelected}, selected_reward=${player.selected_reward}`)
+        return !hasSelected
+      })
+      
+      console.log('🔍 [getNextSelector] 找到的下一个选择者:', nextPlayer ? {
+        id: nextPlayer.id,
+        nickname: nextPlayer.nickname,
+        orderNumber: nextPlayer.order_number,
+        selectedReward: nextPlayer.selected_reward
+      } : '没有找到')
+      
+      return nextPlayer || null
+    } catch (error) {
+      console.error('获取下一个选择者失败:', error)
+      return null
     }
   }
 

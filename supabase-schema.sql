@@ -10,7 +10,7 @@ CREATE TABLE users (
   room_id UUID,
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   order_number INTEGER,
-  selected_reward INTEGER,
+  selected_reward UUID REFERENCES rewards(id),
   is_online BOOLEAN DEFAULT true,
   current_emoji TEXT,
   emoji_expires_at TIMESTAMP WITH TIME ZONE,

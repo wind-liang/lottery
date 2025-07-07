@@ -143,8 +143,13 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     
     setIsLoading(true)
     try {
-      await GameLogic.updateRoomStage(room.id, 'reward_selection')
-      onStageChange()
+      // 开始奖励选择流程
+      const success = await GameLogic.startRewardSelection(room.id)
+      if (success) {
+        onStageChange()
+      } else {
+        alert('开始奖励选择失败，请检查是否有玩家参与')
+      }
     } catch (error) {
       console.error('开始奖励选择失败:', error)
       alert('开始奖励选择失败，请重试')
@@ -260,14 +265,26 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
             <div className="space-y-2">
               <button
                 onClick={() => confirmAction(
-                  '开始绝地翻盘',
-                  '确定要开始绝地翻盘阶段吗？',
+                  '开始奖励选择',
+                  '确定要开始奖励选择流程吗？',
+                  handleStartRewardSelection
+                )}
+                disabled={isLoading}
+                className="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-700 disabled:opacity-50"
+              >
+                {isLoading ? '处理中...' : '开始奖励选择'}
+              </button>
+              
+              <button
+                onClick={() => confirmAction(
+                  '进入绝地翻盘',
+                  '确定要进入绝地翻盘阶段吗？',
                   handleStartFinalLottery
                 )}
                 disabled={isLoading}
-                className="w-full px-4 py-3 bg-gradient-to-r from-red-400 to-red-600 text-white rounded-lg font-medium hover:from-red-500 hover:to-red-700 disabled:opacity-50"
+                className="w-full px-4 py-2 bg-gradient-to-r from-red-400 to-red-600 text-white rounded-lg font-medium hover:from-red-500 hover:to-red-700 disabled:opacity-50"
               >
-                {isLoading ? '处理中...' : '开始绝地翻盘'}
+                {isLoading ? '处理中...' : '进入绝地翻盘'}
               </button>
             </div>
           )}
