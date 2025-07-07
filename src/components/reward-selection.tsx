@@ -343,7 +343,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
 
       {/* 当前选择者信息 - 只在选择流程开始后显示 */}
       {selectionInProgress && currentSelector && (
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 mt-20">
           <div className="flex items-center justify-between">
             {/* 左侧显示当前选择者头像 - 根据PRD要求 */}
             <div className="flex items-center space-x-3">
