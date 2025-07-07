@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
-import { Crown, Clock, Check, Gift } from 'lucide-react'
+import { Crown, Clock, Check } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -448,35 +448,29 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
           </div>
         </div>
       ) : (
-        /* 等待主持人开始选择的状态 */
-        <div className="space-y-4">
+        /* 等待主持人开始选择的状态 - 保持抽奖箱UI */
+        <div className="flex justify-center mb-8">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 text-center"
+            className="relative w-32 h-32 z-10"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
           >
-            <motion.div
-              animate={{ 
-                scale: [1, 1.1, 1],
-                opacity: [0.7, 1, 0.7]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="mb-4"
-            >
-              <Gift className="w-16 h-16 text-yellow-400 mx-auto" />
-            </motion.div>
-            
-            <h3 className="text-xl font-bold text-white mb-2">奖励选择阶段</h3>
-            <p className="text-white/70 text-sm mb-4">
-              恭喜各位获得名次！
-            </p>
-            <p className="text-white/80 text-base">
-              等待主持人开始奖励选择流程...
-            </p>
+            {/* 箱子主体 */}
+            <div className="w-full h-full bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl border-4 border-yellow-300 shadow-lg relative overflow-visible">
+              {/* 箱子装饰 */}
+              <div className="absolute inset-2 border-2 border-yellow-200 rounded-lg"></div>
+              
+              {/* 礼物图标 */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* 箱子盖子 */}
+            <div className="absolute -top-2 left-2 right-2 h-4 bg-gradient-to-br from-yellow-300 to-orange-400 rounded-t-xl border-2 border-yellow-200" />
           </motion.div>
         </div>
       )}

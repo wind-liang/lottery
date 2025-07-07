@@ -289,11 +289,11 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
           房间成员 ({users.length}) - 在线: {users.filter(u => u.is_online).length}
         </h3>
         
-        <div className="flex flex-wrap justify-center gap-3">
+        <div className="flex flex-wrap justify-center gap-3 p-2">
           {nonHostUsers.map((user) => (
             <div
               key={user.id}
-              className="relative cursor-pointer p-2"
+              className="relative cursor-pointer p-3"
               onClick={() => handleUserClick(user)}
             >
               <div className={`${avatarSize} rounded-full border-2 ${getRoleBorder(user.role, user.is_online)} shadow-lg relative`}>
@@ -355,7 +355,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
                 )}
               </div>
               
-              <p className={`text-xs text-center mt-1 truncate max-w-20 ${user.is_online ? 'text-white' : 'text-gray-400'}`}>
+              <p className={`text-xs text-center mt-2 mb-1 truncate max-w-20 ${user.is_online ? 'text-white' : 'text-gray-400'}`}>
                 {user.nickname}
                 {!user.is_online && (
                   <span className="block text-xs text-red-400 font-medium">离线</span>
