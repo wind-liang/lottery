@@ -633,7 +633,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
 
       {/* 控制按钮 - 只显示玩家选择时的确认按钮 */}
       {isMyTurn && selectedReward && (
-        <div className="space-y-3">
+        <div className="space-y-3 mb-6">
           <button
             onClick={() => {
               console.log('🖱️ [确认选择按钮] 被点击')
