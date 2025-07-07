@@ -25,7 +25,7 @@ interface ConfirmModalProps {
 
 function ConfirmModal({ title, message, onConfirm, onCancel }: ConfirmModalProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[54] bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>

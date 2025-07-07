@@ -104,28 +104,30 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto shadow-2xl"
+              className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] shadow-2xl relative"
             >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
+              {/* 固定的关闭按钮 */}
+              <button
+                onClick={() => setIsOpen(false)}
+                className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-colors bg-white/80 backdrop-blur-sm shadow-md"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* 可滚动的内容区域 */}
+              <div className="p-6 max-h-[80vh] overflow-y-auto">
+                <div className="flex items-center space-x-3 mb-6 pr-12">
                   <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full p-2">
                     <Gift className="w-5 h-5 text-white" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800">奖励选择情况</h3>
                 </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
               {/* 统计信息 */}
               <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100">
@@ -257,6 +259,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
                     </>
                   )}
                 </button>
+              </div>
               </div>
             </motion.div>
           </motion.div>

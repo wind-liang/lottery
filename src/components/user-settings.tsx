@@ -125,7 +125,7 @@ export function UserSettings({ user, onClose, onUserUpdate }: UserSettingsProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[56] bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div>

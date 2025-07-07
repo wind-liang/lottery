@@ -539,7 +539,7 @@ export default function Home() {
       <RewardViewer 
         roomId={room.id}
         users={users}
-        className="fixed bottom-32 right-4 z-50"
+        className="fixed bottom-36 right-4 z-50"
       />
       
       {/* 设置按钮 - 在表情按钮上方对齐 */}
