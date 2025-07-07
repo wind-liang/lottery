@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
@@ -23,6 +23,9 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
   const [selectedReward, setSelectedReward] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState(30)
   const [showConfirm, setShowConfirm] = useState(false)
+  
+  // 使用 ref 保存最新的 handleRandomSelection 函数
+  const handleRandomSelectionRef = useRef<() => Promise<void>>(async () => {})
   
   // 从房间状态获取当前选择者
   const currentSelector = room.current_selector ? users.find(u => u.id === room.current_selector) : null
@@ -98,7 +101,12 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     } catch (error) {
       console.error('随机选择失败:', error)
     }
-  }, [currentSelector, rewards, fetchRewards, onStageChange, room.id])
+  }, [currentSelector?.id, rewards, fetchRewards, onStageChange, room.id])
+
+  // 更新 ref 中的函数引用
+  useEffect(() => {
+    handleRandomSelectionRef.current = handleRandomSelection
+  }, [handleRandomSelection])
 
   // 加载奖励列表
   useEffect(() => {
@@ -111,31 +119,34 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
       console.log('🕐 [倒计时] 选择者变化，重置倒计时:', currentSelector.nickname)
       setTimeLeft(30)
       setSelectedReward(null) // 清除选择状态
+    } else if (!selectionInProgress) {
+      // 如果选择流程结束，也重置倒计时
+      console.log('🕐 [倒计时] 选择流程结束，重置倒计时')
+      setTimeLeft(30)
+      setSelectedReward(null)
     }
   }, [selectionInProgress, currentSelector?.id])
 
   // 倒计时执行
   useEffect(() => {
+    let timer: NodeJS.Timeout | null = null
+    
     if (selectionInProgress && currentSelector && currentSelector.id === currentUser.id) {
       console.log('🕐 [倒计时] 开始倒计时，当前选择者:', currentSelector.nickname)
       
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         setTimeLeft(prev => {
-          console.log('🕐 [倒计时] 倒计时更新:', prev - 1)
-          if (prev <= 1) {
+          const newTime = prev - 1
+          console.log('🕐 [倒计时] 倒计时更新:', newTime)
+          if (newTime <= 0) {
             // 时间到了，随机选择一个奖励
             console.log('⏰ [倒计时] 时间到，随机选择奖励')
-            handleRandomSelection()
+            handleRandomSelectionRef.current()
             return 30
           }
-          return prev - 1
+          return newTime
         })
       }, 1000)
-
-      return () => {
-        console.log('🧹 [倒计时] 清理定时器')
-        clearInterval(timer)
-      }
     } else {
       console.log('🚫 [倒计时] 不满足倒计时条件:', {
         selectionInProgress,
@@ -143,7 +154,14 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         isMyTurn: currentSelector?.id === currentUser.id
       })
     }
-  }, [selectionInProgress, currentSelector?.id, currentUser.id, handleRandomSelection])
+
+    return () => {
+      if (timer) {
+        console.log('🧹 [倒计时] 清理定时器')
+        clearInterval(timer)
+      }
+    }
+  }, [selectionInProgress, currentSelector?.id, currentUser.id])
 
   const handleStartSelection = async () => {
     try {
@@ -215,7 +233,6 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         console.log('✅ [奖励选择] 用户选择成功:', currentSelector.nickname)
         setShowConfirm(false)
         setSelectedReward(null)
-        setTimeLeft(30)
         
         // 等待一下确保数据库更新完成
         await new Promise(resolve => setTimeout(resolve, 200))

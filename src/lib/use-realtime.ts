@@ -36,70 +36,74 @@ export function useRealtime({
 
     console.log('🔄 [Realtime] 获取房间用户列表...')
     
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('room_id', roomId)
-      .order('is_online', { ascending: false }) // 在线用户排在前面
-      .order('created_at', { ascending: true })
+    try {
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('is_online', { ascending: false }) // 在线用户排在前面
+        .order('created_at', { ascending: true })
 
-    if (error) {
-      console.error('❌ [Realtime] 获取用户列表失败:', error)
-      return
-    }
+      if (error) {
+        console.error('❌ [Realtime] 获取用户列表失败:', error)
+        return
+      }
 
-    const onlineCount = users?.filter(u => u.is_online).length || 0
-    const offlineCount = users?.filter(u => !u.is_online).length || 0
-    console.log('✅ [Realtime] 获取到用户列表:', users?.length || 0, '个用户 (在线:', onlineCount, '离线:', offlineCount, ')')
-    
-    // 检测新用户加入和用户离开
-    const currentUsers = users || []
-    const lastUsers = lastUsersRef.current
-    
-    if (lastUsers.length > 0) {
-      // 检测新用户加入
-      const newUsers = currentUsers.filter(
-        currentUser => !lastUsers.some(lastUser => lastUser.id === currentUser.id)
-      )
+      const onlineCount = users?.filter(u => u.is_online).length || 0
+      const offlineCount = users?.filter(u => !u.is_online).length || 0
+      console.log('✅ [Realtime] 获取到用户列表:', users?.length || 0, '个用户 (在线:', onlineCount, '离线:', offlineCount, ')')
       
-      // 检测用户离开
-      const leftUsers = lastUsers.filter(
-        lastUser => !currentUsers.some(currentUser => currentUser.id === lastUser.id)
-      )
+      // 检测新用户加入和用户离开
+      const currentUsers = users || []
+      const lastUsers = lastUsersRef.current
       
-      // 检测获奖者（order_number字段从null变为有值）
-      const newWinners = currentUsers.filter(currentUser => {
-        const lastUser = lastUsers.find(lu => lu.id === currentUser.id)
-        return lastUser && 
-               lastUser.order_number === null && 
-               currentUser.order_number !== null
-      })
+      if (lastUsers.length > 0) {
+        // 检测新用户加入
+        const newUsers = currentUsers.filter(
+          currentUser => !lastUsers.some(lastUser => lastUser.id === currentUser.id)
+        )
+        
+        // 检测用户离开
+        const leftUsers = lastUsers.filter(
+          lastUser => !currentUsers.some(currentUser => currentUser.id === lastUser.id)
+        )
+        
+        // 检测获奖者（order_number字段从null变为有值）
+        const newWinners = currentUsers.filter(currentUser => {
+          const lastUser = lastUsers.find(lu => lu.id === currentUser.id)
+          return lastUser && 
+                 lastUser.order_number === null && 
+                 currentUser.order_number !== null
+        })
+        
+        newUsers.forEach(user => {
+          console.log('🆕 [Realtime] 新用户加入:', user.nickname)
+          onUserJoined?.(user)
+        })
+        
+        leftUsers.forEach(user => {
+          console.log('👋 [Realtime] 用户离开:', user.nickname)
+          onUserLeft?.(user.id)
+        })
+        
+        newWinners.forEach(winner => {
+          console.log('🏆 [Realtime] 检测到新获奖者:', winner.nickname, '排名:', winner.order_number)
+          if (onWinnerDrawn && winner.order_number) {
+            onWinnerDrawn({
+              userId: winner.id,
+              nickname: winner.nickname,
+              orderNumber: winner.order_number,
+              avatar: winner.avatar_url || undefined
+            })
+          }
+        })
+      }
       
-      newUsers.forEach(user => {
-        console.log('🆕 [Realtime] 新用户加入:', user.nickname)
-        onUserJoined?.(user)
-      })
-      
-      leftUsers.forEach(user => {
-        console.log('👋 [Realtime] 用户离开:', user.nickname)
-        onUserLeft?.(user.id)
-      })
-      
-      newWinners.forEach(winner => {
-        console.log('🏆 [Realtime] 检测到新获奖者:', winner.nickname, '排名:', winner.order_number)
-        if (onWinnerDrawn && winner.order_number) {
-          onWinnerDrawn({
-            userId: winner.id,
-            nickname: winner.nickname,
-            orderNumber: winner.order_number,
-            avatar: winner.avatar_url || undefined
-          })
-        }
-      })
+      lastUsersRef.current = currentUsers
+      onUsersChange?.(currentUsers)
+    } catch (error) {
+      console.error('❌ [Realtime] 获取房间用户失败:', error)
     }
-    
-    lastUsersRef.current = currentUsers
-    onUsersChange?.(currentUsers)
   }, [roomId, onUsersChange, onUserJoined, onUserLeft, onWinnerDrawn])
 
   // 获取房间信息
@@ -122,6 +126,29 @@ export function useRealtime({
     console.log('✅ [Realtime] 获取到房间信息:', room?.name)
     onRoomChange?.(room)
   }, [roomId, onRoomChange])
+
+  // 防抖定时器引用
+  const usersFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const roomFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 防抖函数
+  const debouncedFetchUsers = useCallback(() => {
+    if (usersFetchTimeoutRef.current) {
+      clearTimeout(usersFetchTimeoutRef.current)
+    }
+    usersFetchTimeoutRef.current = setTimeout(() => {
+      fetchRoomUsers()
+    }, 300) // 300ms 防抖
+  }, [fetchRoomUsers])
+
+  const debouncedFetchRoom = useCallback(() => {
+    if (roomFetchTimeoutRef.current) {
+      clearTimeout(roomFetchTimeoutRef.current)
+    }
+    roomFetchTimeoutRef.current = setTimeout(() => {
+      fetchRoom()
+    }, 300) // 300ms 防抖
+  }, [fetchRoom])
 
   // 设置实时订阅
   useEffect(() => {
@@ -149,10 +176,8 @@ export function useRealtime({
         (payload) => {
           console.log('🔄 [Realtime] 用户数据变化:', payload.eventType, payload.new || payload.old)
           
-          // 稍微延迟以确保数据同步
-          setTimeout(() => {
-            fetchRoomUsers()
-          }, 100)
+          // 使用防抖延迟请求
+          debouncedFetchUsers()
         }
       )
       .subscribe()
@@ -170,9 +195,7 @@ export function useRealtime({
         },
         (payload) => {
           console.log('🔄 [Realtime] 房间数据变化:', payload.eventType, payload.new || payload.old)
-          setTimeout(() => {
-            fetchRoom()
-          }, 100)
+          debouncedFetchRoom()
         }
       )
       .subscribe()
@@ -192,27 +215,29 @@ export function useRealtime({
           console.log('🎭 [Realtime] 新表情数据:', payload.new)
           
           if (payload.new) {
-            // 获取发送表情的用户信息
-            const { data: user } = await supabase
-              .from('users')
-              .select('nickname')
-              .eq('id', payload.new.user_id)
-              .single()
+            try {
+              // 获取发送表情的用户信息
+              const { data: user } = await supabase
+                .from('users')
+                .select('nickname')
+                .eq('id', payload.new.user_id)
+                .single()
 
-            if (user) {
-              console.log('🎭 [Realtime] 表情发送者:', user.nickname)
-              onEmojiReceived?.({
-                userId: payload.new.user_id,
-                emoji: payload.new.emoji,
-                nickname: user.nickname
-              })
+              if (user) {
+                console.log('🎭 [Realtime] 表情发送者:', user.nickname)
+                onEmojiReceived?.({
+                  userId: payload.new.user_id,
+                  emoji: payload.new.emoji,
+                  nickname: user.nickname
+                })
+              }
+            } catch (error) {
+              console.error('❌ [Realtime] 获取表情发送者信息失败:', error)
             }
           }
           
-          // 刷新用户列表以更新表情显示
-          setTimeout(() => {
-            fetchRoomUsers()
-          }, 100)
+          // 使用防抖刷新用户列表
+          debouncedFetchUsers()
         }
       )
       .subscribe()
@@ -233,8 +258,18 @@ export function useRealtime({
         supabase.removeChannel(channel)
       })
       channelsRef.current = []
+      
+      // 清理防抖定时器
+      if (usersFetchTimeoutRef.current) {
+        clearTimeout(usersFetchTimeoutRef.current)
+        usersFetchTimeoutRef.current = null
+      }
+      if (roomFetchTimeoutRef.current) {
+        clearTimeout(roomFetchTimeoutRef.current)
+        roomFetchTimeoutRef.current = null
+      }
     }
-  }, [roomId, fetchRoomUsers, fetchRoom, onEmojiReceived])
+  }, [roomId, debouncedFetchUsers, debouncedFetchRoom, onEmojiReceived])
 
   return {
     refreshUsers: fetchRoomUsers,

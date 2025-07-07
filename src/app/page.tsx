@@ -40,67 +40,80 @@ export default function Home() {
     initializeApp()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 使用 useCallback 优化回调函数，避免重复创建
+  const handleUsersChange = useCallback((updatedUsers: User[]) => {
+    console.log('🔄 [实时] 用户列表更新:', updatedUsers.length, '个用户')
+    setUsers(updatedUsers)
+    
+    // 同步更新currentUser状态
+    if (currentUser) {
+      const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)
+      if (updatedCurrentUser) {
+        console.log('🔄 [实时] 当前用户信息同步更新:', updatedCurrentUser.role)
+        setCurrentUser(updatedCurrentUser)
+      }
+    }
+  }, [currentUser])
+
+  const handleRoomChange = useCallback((updatedRoom: Room) => {
+    console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name)
+    setRoom(updatedRoom)
+  }, [])
+
+  const handleEmojiReceived = useCallback((emojiData: { userId: string, emoji: string, nickname: string }) => {
+    console.log('🎭 [实时] 收到表情:', emojiData)
+    addRealtimeNotification({
+      type: 'emoji_sent',
+      message: `${emojiData.nickname} 发送了表情`,
+      emoji: emojiData.emoji
+    })
+  }, [])
+
+  const handleUserJoined = useCallback((user: User) => {
+    console.log('🆕 [实时] 用户加入:', user.nickname)
+    addRealtimeNotification({
+      type: 'user_joined',
+      message: `${user.nickname} 加入了房间`
+    })
+  }, [])
+
+  const handleUserLeft = useCallback((userId: string) => {
+    console.log('👋 [实时] 用户离开:', userId)
+    // 从当前用户列表中找到离开的用户
+    const leftUser = users.find(u => u.id === userId)
+    if (leftUser) {
+      addRealtimeNotification({
+        type: 'user_left',
+        message: `${leftUser.nickname} 离开了房间`
+      })
+    }
+  }, [users])
+
+  const handleRealtimeWinnerDrawn = useCallback((winner: { userId: string; nickname: string; orderNumber: number; avatar?: string }) => {
+    console.log('🏆 [实时] 检测到获奖者:', winner)
+    // 显示获奖弹窗
+    setLotteryWinner(winner)
+    // 同时显示小通知
+    const isCurrentUser = winner.userId === currentUser?.id
+    const message = isCurrentUser 
+      ? `恭喜你获得了第${winner.orderNumber}名！`
+      : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`
+    
+    addRealtimeNotification({
+      type: 'lottery_winner',
+      message
+    })
+  }, [currentUser])
+
   // 使用实时通信hook
   const { refreshUsers, refreshRoom } = useRealtime({
     roomId: room?.id || null,
-    onUsersChange: (updatedUsers) => {
-      console.log('🔄 [实时] 用户列表更新:', updatedUsers.length, '个用户')
-      setUsers(updatedUsers)
-      
-      // 同步更新currentUser状态
-      if (currentUser) {
-        const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id)
-        if (updatedCurrentUser) {
-          console.log('🔄 [实时] 当前用户信息同步更新:', updatedCurrentUser.role)
-          setCurrentUser(updatedCurrentUser)
-        }
-      }
-    },
-    onRoomChange: (updatedRoom) => {
-      console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name)
-      setRoom(updatedRoom)
-    },
-    onEmojiReceived: (emojiData) => {
-      console.log('🎭 [实时] 收到表情:', emojiData)
-      addRealtimeNotification({
-        type: 'emoji_sent',
-        message: `${emojiData.nickname} 发送了表情`,
-        emoji: emojiData.emoji
-      })
-    },
-    onUserJoined: (user) => {
-      console.log('🆕 [实时] 用户加入:', user.nickname)
-      addRealtimeNotification({
-        type: 'user_joined',
-        message: `${user.nickname} 加入了房间`
-      })
-    },
-    onUserLeft: (userId) => {
-      console.log('👋 [实时] 用户离开:', userId)
-      // 从当前用户列表中找到离开的用户
-      const leftUser = users.find(u => u.id === userId)
-      if (leftUser) {
-        addRealtimeNotification({
-          type: 'user_left',
-          message: `${leftUser.nickname} 离开了房间`
-        })
-      }
-    },
-    onWinnerDrawn: (winner) => {
-      console.log('🏆 [实时] 检测到获奖者:', winner)
-      // 显示获奖弹窗
-      setLotteryWinner(winner)
-      // 同时显示小通知
-      const isCurrentUser = winner.userId === currentUser?.id
-      const message = isCurrentUser 
-        ? `恭喜你获得了第${winner.orderNumber}名！`
-        : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`
-      
-      addRealtimeNotification({
-        type: 'lottery_winner',
-        message
-      })
-    }
+    onUsersChange: handleUsersChange,
+    onRoomChange: handleRoomChange,
+    onEmojiReceived: handleEmojiReceived,
+    onUserJoined: handleUserJoined,
+    onUserLeft: handleUserLeft,
+    onWinnerDrawn: handleRealtimeWinnerDrawn
   })
 
   // 使用用户状态管理hook
@@ -114,19 +127,13 @@ export default function Home() {
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       GameLogic.cleanupExpiredEmojis()
-      // 同时检查是否有表情过期，如果有则刷新UI
-      if (users.some(user => 
-        user.current_emoji && 
-        user.emoji_expires_at && 
-        new Date(user.emoji_expires_at) <= new Date()
-      )) {
-        console.log('🔄 检测到过期表情，刷新用户界面')
-        refreshUsers()
-      }
-    }, 1000) // 每秒检查一次
+      // 检查是否有表情过期，如果有则刷新UI
+      // 使用 ref 来避免依赖 users 状态
+      refreshUsers()
+    }, 5000) // 每5秒检查一次，减少频率
 
     return () => clearInterval(cleanupInterval)
-  }, [users, refreshUsers])
+  }, [refreshUsers])
 
   const initializeApp = async () => {
     try {
