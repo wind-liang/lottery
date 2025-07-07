@@ -315,41 +315,6 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
 
 
 
-      {/* 当前选择者信息 - 只在选择流程开始后显示 */}
-      {selectionInProgress && currentSelector && (
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-          <div className="flex items-center justify-between">
-            {/* 左侧显示当前选择者头像 - 根据PRD要求 */}
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full border-2 border-blue-400">
-                <img
-                  src={currentSelector.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentSelector.id}`}
-                  alt={currentSelector.nickname}
-                  className="w-full h-full object-cover rounded-full"
-                />
-              </div>
-              <div>
-                <p className="text-white font-medium">
-                  {isMyTurn ? '轮到你选择了' : `${currentSelector.nickname} 正在选择`}
-                </p>
-                <p className="text-white/70 text-sm">
-                  第 {currentSelector.order_number} 名
-                </p>
-              </div>
-            </div>
-            
-            {isMyTurn && (
-              <div className="flex items-center space-x-2 text-white">
-                <Clock className="w-4 h-4" />
-                <span className="font-bold text-lg">
-                  {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 奖励列表 - 只有在选择流程开始后才显示 */}
       {selectionInProgress ? (
         <div className="space-y-4">
@@ -446,6 +411,41 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
               )}
             </div>
           </div>
+
+          {/* 当前选择者信息 - 只在选择流程开始后显示 */}
+          {currentSelector && (
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+              <div className="flex items-center justify-between">
+                {/* 左侧显示当前选择者头像 - 根据PRD要求 */}
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full border-2 border-blue-400">
+                    <img
+                      src={currentSelector.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentSelector.id}`}
+                      alt={currentSelector.nickname}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">
+                      {isMyTurn ? '轮到你选择了' : `${currentSelector.nickname} 正在选择`}
+                    </p>
+                    <p className="text-white/70 text-sm">
+                      第 {currentSelector.order_number} 名
+                    </p>
+                  </div>
+                </div>
+                
+                {isMyTurn && (
+                  <div className="flex items-center space-x-2 text-white">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-bold text-lg">
+                      {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           
           {/* 横向滚动的奖励列表 */}
           <div className="overflow-x-auto pb-4">
