@@ -13,6 +13,7 @@ interface GameControlsProps {
   currentUser: User
   users: User[]
   onStageChange: () => void
+  onWinnerDrawn?: (winner: { userId: string; nickname: string; orderNumber: number; avatar?: string }) => void
 }
 
 interface ConfirmModalProps {
@@ -57,7 +58,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel }: ConfirmModalProps
   )
 }
 
-export function GameControls({ room, currentUser, users, onStageChange }: GameControlsProps) {
+export function GameControls({ room, currentUser, users, onStageChange, onWinnerDrawn }: GameControlsProps) {
   const [showConfirmModal, setShowConfirmModal] = useState<{
     title: string
     message: string
@@ -87,6 +88,18 @@ export function GameControls({ room, currentUser, users, onStageChange }: GameCo
       if (!drawnUser) {
         alert('没有参与者可以抽取')
         return
+      }
+
+      console.log('🎯 [抽奖] 抽中用户:', drawnUser.nickname, '排名:', drawnUser.order_number)
+
+      // 触发获奖通知
+      if (onWinnerDrawn && drawnUser.order_number) {
+        onWinnerDrawn({
+          userId: drawnUser.id,
+          nickname: drawnUser.nickname,
+          orderNumber: drawnUser.order_number,
+          avatar: drawnUser.avatar_url || undefined
+        })
       }
 
       // 检查是否所有参与者都已被抽中

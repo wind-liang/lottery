@@ -15,6 +15,7 @@ interface UseRealtimeProps {
   onEmojiReceived?: (emoji: { userId: string, emoji: string, nickname: string }) => void
   onUserJoined?: (user: User) => void
   onUserLeft?: (userId: string) => void
+  onWinnerDrawn?: (winner: { userId: string; nickname: string; orderNumber: number; avatar?: string }) => void
 }
 
 export function useRealtime({
@@ -23,7 +24,8 @@ export function useRealtime({
   onRoomChange,
   onEmojiReceived,
   onUserJoined,
-  onUserLeft
+  onUserLeft,
+  onWinnerDrawn
 }: UseRealtimeProps) {
   const channelsRef = useRef<RealtimeChannel[]>([])
   const lastUsersRef = useRef<User[]>([])
@@ -65,6 +67,14 @@ export function useRealtime({
         lastUser => !currentUsers.some(currentUser => currentUser.id === lastUser.id)
       )
       
+      // 检测获奖者（order_number字段从null变为有值）
+      const newWinners = currentUsers.filter(currentUser => {
+        const lastUser = lastUsers.find(lu => lu.id === currentUser.id)
+        return lastUser && 
+               lastUser.order_number === null && 
+               currentUser.order_number !== null
+      })
+      
       newUsers.forEach(user => {
         console.log('🆕 [Realtime] 新用户加入:', user.nickname)
         onUserJoined?.(user)
@@ -74,11 +84,23 @@ export function useRealtime({
         console.log('👋 [Realtime] 用户离开:', user.nickname)
         onUserLeft?.(user.id)
       })
+      
+      newWinners.forEach(winner => {
+        console.log('🏆 [Realtime] 检测到新获奖者:', winner.nickname, '排名:', winner.order_number)
+        if (onWinnerDrawn && winner.order_number) {
+          onWinnerDrawn({
+            userId: winner.id,
+            nickname: winner.nickname,
+            orderNumber: winner.order_number,
+            avatar: winner.avatar_url || undefined
+          })
+        }
+      })
     }
     
     lastUsersRef.current = currentUsers
     onUsersChange?.(currentUsers)
-  }, [roomId, onUsersChange, onUserJoined, onUserLeft])
+  }, [roomId, onUsersChange, onUserJoined, onUserLeft, onWinnerDrawn])
 
   // 获取房间信息
   const fetchRoom = useCallback(async () => {

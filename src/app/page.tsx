@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
 import { LotteryBox } from '@/components/lottery-box'
@@ -11,6 +11,7 @@ import { GameStage } from '@/components/game-stage'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { UserSettings } from '@/components/user-settings'
 import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
+import { LotteryWinnerNotification } from '@/components/lottery-winner-notification'
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
 import { Settings } from 'lucide-react'
@@ -26,6 +27,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [lotteryWinner, setLotteryWinner] = useState<{
+    userId: string
+    nickname: string
+    orderNumber: number
+    avatar?: string
+  } | null>(null)
 
   // 初始化用户和房间
   useEffect(() => {
@@ -77,6 +84,21 @@ export default function Home() {
           message: `${leftUser.nickname} 离开了房间`
         })
       }
+    },
+    onWinnerDrawn: (winner) => {
+      console.log('🏆 [实时] 检测到获奖者:', winner)
+      // 显示获奖弹窗
+      setLotteryWinner(winner)
+      // 同时显示小通知
+      const isCurrentUser = winner.userId === currentUser?.id
+      const message = isCurrentUser 
+        ? `恭喜你获得了第${winner.orderNumber}名！`
+        : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`
+      
+      addRealtimeNotification({
+        type: 'lottery_winner',
+        message
+      })
     }
   })
 
@@ -463,6 +485,23 @@ export default function Home() {
     }
   }
 
+  // 处理获奖通知
+  const handleWinnerDrawn = (winner: {
+    userId: string
+    nickname: string
+    orderNumber: number
+    avatar?: string
+  }) => {
+    console.log('🏆 [获奖通知] 显示获奖者:', winner)
+    setLotteryWinner(winner)
+  }
+
+  // 关闭获奖通知
+  const handleCloseWinnerNotification = useCallback(() => {
+    console.log('🚫 [获奖通知] 父组件关闭获奖通知')
+    setLotteryWinner(null)
+  }, [])
+
   if (loading) {
     return <LoadingSpinner />
   }
@@ -545,6 +584,7 @@ export default function Home() {
             currentUser={currentUser}
             users={users}
             onStageChange={() => refreshRoom()}
+            onWinnerDrawn={handleWinnerDrawn}
           />
           
           {/* 表情面板 */}
@@ -568,6 +608,13 @@ export default function Home() {
           onUserUpdate={updateUserInfo}
         />
       )}
+
+      {/* 获奖通知弹窗 */}
+      <LotteryWinnerNotification
+        winner={lotteryWinner}
+        currentUserId={currentUser.id}
+        onClose={handleCloseWinnerNotification}
+      />
     </div>
   )
 }
