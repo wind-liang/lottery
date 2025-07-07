@@ -13,6 +13,7 @@ import { UserSettings } from '@/components/user-settings'
 import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
 import { LotteryWinnerNotification } from '@/components/lottery-winner-notification'
 import { RewardSelection } from '@/components/reward-selection'
+import { RewardViewer } from '@/components/reward-viewer'
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
 import { Settings } from 'lucide-react'
@@ -533,6 +534,13 @@ export default function Home() {
       
       {/* 游戏阶段指示器 */}
       <GameStage stage={room.stage} />
+      
+      {/* 奖励查看器按钮 - 在设置按钮上方 */}
+      <RewardViewer 
+        roomId={room.id}
+        users={users}
+        className="fixed bottom-32 right-4 z-50"
+      />
       
       {/* 设置按钮 - 在表情按钮上方对齐 */}
       <div className="fixed bottom-20 right-4 z-50">
