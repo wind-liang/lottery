@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Star, Crown } from 'lucide-react'
+import { Trophy, Star, Crown, Zap } from 'lucide-react'
 
 interface LotteryWinnerNotificationProps {
   winner: {
@@ -51,12 +51,21 @@ export function LotteryWinnerNotification({
   // 移除这个早期返回，让 AnimatePresence 处理动画
 
   const isCurrentUser = winner?.userId === currentUserId
-  const message = winner ? (isCurrentUser 
-    ? `恭喜你获得了第${winner.orderNumber}名！`
-    : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`) : ''
+  const isFinalLottery = winner?.orderNumber === 0 // 绝地翻盘标识
+  
+  const message = winner ? (
+    isFinalLottery 
+      ? (isCurrentUser ? `恭喜你绝地翻盘！` : `恭喜${winner.nickname}绝地翻盘！`)
+      : (isCurrentUser 
+        ? `恭喜你获得了第${winner.orderNumber}名！`
+        : `恭喜${winner.nickname}获得了第${winner.orderNumber}名！`)
+  ) : ''
 
   const getIcon = () => {
     if (!winner) return null
+    if (isFinalLottery) {
+      return <Zap className="w-16 h-16 text-red-400" />
+    }
     switch (winner.orderNumber) {
       case 1:
         return <Crown className="w-16 h-16 text-yellow-500" />
@@ -71,6 +80,9 @@ export function LotteryWinnerNotification({
 
   const getBackgroundColor = () => {
     if (!winner) return 'from-purple-400 to-purple-600'
+    if (isFinalLottery) {
+      return 'from-red-500 to-red-700'
+    }
     switch (winner.orderNumber) {
       case 1:
         return 'from-yellow-400 to-yellow-600'
@@ -149,7 +161,7 @@ export function LotteryWinnerNotification({
                   
                   {/* 排名徽章 */}
                   <div className="absolute -top-2 -right-2 bg-white text-black font-bold text-sm w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
-                    {winner?.orderNumber || 0}
+                    {isFinalLottery ? '翻盘' : (winner?.orderNumber || 0)}
                   </div>
                 </div>
               </div>
@@ -196,7 +208,10 @@ export function LotteryWinnerNotification({
                 transition={{ delay: 0.4, type: "spring", stiffness: 300 }}
                 className="mt-4 text-white/80 text-sm"
               >
-                {isCurrentUser ? '你成功获得了名次！' : `${winner?.nickname || ''}成功获得了名次！`}
+                {isFinalLottery 
+                  ? (isCurrentUser ? '你成功实现了绝地翻盘！' : `${winner?.nickname || ''}成功实现了绝地翻盘！`)
+                  : (isCurrentUser ? '你成功获得了名次！' : `${winner?.nickname || ''}成功获得了名次！`)
+                }
               </motion.div>
             </div>
           </motion.div>
