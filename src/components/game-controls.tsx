@@ -437,19 +437,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
             {isLoading ? '重置中...' : '重置游戏'}
           </button>
 
-          {/* 诊断按钮 - 仅在开发模式下显示 */}
-          {process.env.NODE_ENV === 'development' && (
-            <button
-              onClick={async () => {
-                console.log('🔍 开始诊断绝地翻盘问题...')
-                await GameLogic.diagnoseFinalLotteryIssue(room.id)
-              }}
-              disabled={isLoading}
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 text-sm"
-            >
-              🔍 诊断绝地翻盘
-            </button>
-          )}
+
         </div>
       </div>
 
