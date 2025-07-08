@@ -42,6 +42,18 @@ CREATE TABLE lottery_participants (
   UNIQUE(room_id, user_id)
 );
 
+-- 绝地翻盘参与者表
+CREATE TABLE final_lottery_participants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  weight INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_drawn BOOLEAN DEFAULT false,
+  drawn_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(room_id, user_id)
+);
+
 -- 奖励表
 CREATE TABLE rewards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,6 +82,10 @@ CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_is_online ON users(is_online);
 CREATE INDEX idx_lottery_participants_room_id ON lottery_participants(room_id);
 CREATE INDEX idx_lottery_participants_user_id ON lottery_participants(user_id);
+CREATE INDEX idx_final_lottery_participants_room_id ON final_lottery_participants(room_id);
+CREATE INDEX idx_final_lottery_participants_user_id ON final_lottery_participants(user_id);
+CREATE INDEX idx_final_lottery_participants_is_drawn ON final_lottery_participants(is_drawn);
+CREATE INDEX idx_final_lottery_participants_weight ON final_lottery_participants(weight);
 CREATE INDEX idx_rewards_room_id ON rewards(room_id);
 CREATE INDEX idx_rewards_order_index ON rewards(order_index);
 CREATE INDEX idx_emojis_room_id ON emojis(room_id);
