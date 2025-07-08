@@ -27,15 +27,19 @@ export function LotteryWinnerNotification({
       console.log('🏆 [获奖弹窗] 显示获奖者:', winner)
       setIsVisible(true)
       
-      // 3秒后自动关闭
+      // 根据是否是绝地翻盘设置不同的显示时间
+      const isFinalLottery = winner.orderNumber === 0 // 绝地翻盘标识
+      const displayTime = isFinalLottery ? 10000 : 3000 // 绝地翻盘10秒，普通抽奖3秒
+      const timeText = isFinalLottery ? '10秒' : '3秒'
+      
       const timer = setTimeout(() => {
-        console.log('⏰ [获奖弹窗] 3秒后开始关闭动画')
+        console.log(`⏰ [获奖弹窗] ${timeText}后开始关闭动画`)
         setIsVisible(false)
         setTimeout(() => {
           console.log('🚫 [获奖弹窗] 动画完成，调用onClose')
           onClose()
         }, 300) // 等待动画完成后调用onClose
-      }, 3000)
+      }, displayTime)
 
       return () => {
         console.log('🧹 [获奖弹窗] 清理定时器')
