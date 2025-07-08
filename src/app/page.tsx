@@ -63,9 +63,9 @@ export default function Home() {
   const handleRoomChange = useCallback((updatedRoom: Room) => {
     console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name, '阶段:', updatedRoom?.stage)
     
-    // 如果房间阶段发生变化，重置绝地翻盘弹窗标志
-    if (room && room.stage !== updatedRoom.stage) {
-      console.log('🔄 [实时] 房间阶段变化:', room.stage, '->', updatedRoom.stage)
+    // 只有在离开 reward_selection 阶段时才重置绝地翻盘弹窗标志
+    if (room && room.stage !== updatedRoom.stage && room.stage === 'reward_selection') {
+      console.log('🔄 [实时] 离开奖励选择阶段，重置绝地翻盘弹窗标志')
       setComebackModalShown(false)
     }
     
@@ -513,82 +513,65 @@ export default function Home() {
     setLotteryWinner(null)
   }, [])
 
-  // 检查是否所有人都选择完毕
-  const checkAllPlayersSelected = useCallback(async () => {
-    if (room?.stage !== 'reward_selection' || comebackModalShown) return
 
-    try {
-      // 获取所有有排序的玩家
-      const { data: players, error } = await supabase
-        .from('users')
-        .select('id, nickname, order_number, selected_reward')
-        .eq('room_id', room.id)
-        .eq('role', 'player')
-        .not('order_number', 'is', null)
-        .order('order_number', { ascending: true })
-
-      if (error) throw error
-
-      // 检查是否所有人都选择了奖励
-      const allSelected = players?.every(player => !!player.selected_reward)
-      
-      console.log('🔍 [检查选择状态] 所有玩家:', players?.map(p => ({
-        nickname: p.nickname,
-        order: p.order_number,
-        hasSelected: !!p.selected_reward
-      })))
-      
-      console.log('🔍 [检查选择状态] 是否全部选择完毕:', allSelected)
-      console.log('🔍 [检查选择状态] 弹窗是否已显示过:', comebackModalShown)
-
-      if (allSelected && players && players.length > 0) {
-        console.log('🎉 [绝地翻盘] 所有人选择完毕，准备显示绝地翻盘弹窗')
-        
-        // 获取最后5名玩家
-        const lastFive = await GameLogic.getLastFivePlayers(room.id)
-        console.log('🎉 [绝地翻盘] 获取到最后5名玩家:', lastFive)
-        
-        setLastFivePlayers(lastFive)
-        setShowComebackModal(true)
-        setComebackModalShown(true) // 标记弹窗已显示
-      }
-    } catch (error) {
-      console.error('检查选择状态失败:', error)
-    }
-  }, [room?.id, room?.stage, comebackModalShown])
 
   // 绝地翻盘弹窗处理函数
   const handleComebackModalClose = () => {
     setShowComebackModal(false)
-    // 注意：这里不重置 setComebackModalShown，因为手动关闭不应该重新触发
+    setComebackModalShown(true) // 标记弹窗已显示过，防止重新显示
   }
 
   const handleComebackModalComplete = async () => {
     setShowComebackModal(false)
-    
-    try {
-      // 设置绝地翻盘抽奖箱
-      const success = await GameLogic.setupFinalLotteryBox(room!.id)
-      if (!success) {
-        alert('设置绝地翻盘抽奖箱失败')
-        return
-      }
-      
-      // 进入绝地翻盘阶段
-      await GameLogic.updateRoomStage(room!.id, 'final_lottery')
-      await refreshRoom()
-    } catch (error) {
-      console.error('进入绝地翻盘阶段失败:', error)
-      alert('进入绝地翻盘阶段失败，请重试')
-    }
+    setComebackModalShown(true) // 标记弹窗已显示过
+    // 倒计时结束后只关闭弹窗，等待主持人手动点击按钮进入绝地翻盘阶段
   }
 
   // 监听用户变化以检查是否所有人都选择完毕
   useEffect(() => {
-    if (room?.stage === 'reward_selection' && users.length > 0) {
-      setTimeout(() => checkAllPlayersSelected(), 500) // 延迟检查，确保状态已更新
+    if (room?.stage === 'reward_selection' && users.length > 0 && !comebackModalShown) {
+      setTimeout(async () => {
+        try {
+          // 获取所有有排序的玩家
+          const { data: players, error } = await supabase
+            .from('users')
+            .select('id, nickname, order_number, selected_reward')
+            .eq('room_id', room.id)
+            .eq('role', 'player')
+            .not('order_number', 'is', null)
+            .order('order_number', { ascending: true })
+
+          if (error) throw error
+
+          // 检查是否所有人都选择了奖励
+          const allSelected = players?.every(player => !!player.selected_reward)
+          
+          console.log('🔍 [检查选择状态] 所有玩家:', players?.map(p => ({
+            nickname: p.nickname,
+            order: p.order_number,
+            hasSelected: !!p.selected_reward
+          })))
+          
+          console.log('🔍 [检查选择状态] 是否全部选择完毕:', allSelected)
+          console.log('🔍 [检查选择状态] 弹窗是否已显示过:', comebackModalShown)
+
+          if (allSelected && players && players.length > 0) {
+            console.log('🎉 [绝地翻盘] 所有人选择完毕，准备显示绝地翻盘弹窗')
+            
+            // 获取最后5名玩家
+            const lastFive = await GameLogic.getLastFivePlayers(room.id)
+            console.log('🎉 [绝地翻盘] 获取到最后5名玩家:', lastFive)
+            
+            setLastFivePlayers(lastFive)
+            setShowComebackModal(true)
+            setComebackModalShown(true) // 标记弹窗已显示
+          }
+        } catch (error) {
+          console.error('检查选择状态失败:', error)
+        }
+      }, 500) // 延迟检查，确保状态已更新
     }
-  }, [users, room?.stage, checkAllPlayersSelected])
+  }, [users, room?.stage, room?.id, comebackModalShown])
 
   if (loading) {
     return <LoadingSpinner />

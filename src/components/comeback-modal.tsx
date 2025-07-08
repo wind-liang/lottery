@@ -48,12 +48,12 @@ export function ComebackModal({
           console.log('🎯 [ComebackModal] 倒计时更新:', prev, '->', newValue)
           
           if (newValue <= 0) {
-            console.log('🎯 [ComebackModal] 倒计时结束，关闭弹窗')
+            console.log('🎯 [ComebackModal] 倒计时结束，进入绝地翻盘阶段')
             if (timerRef.current) {
               clearInterval(timerRef.current)
               timerRef.current = null
             }
-            onClose()
+            onCompleteRef.current()
             return 0
           }
           return newValue
