@@ -93,8 +93,6 @@ export const uploadImageToAPI = async (
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadResult> => {
   try {
-    console.log('🔄 开始上传图片到API...', file.name)
-    
     // 验证图片
     const validation = validateImage(file)
     if (!validation.valid) {
@@ -105,12 +103,7 @@ export const uploadImageToAPI = async (
     }
 
     // 压缩图片
-    console.log('🔄 压缩图片中...')
     const compressedFile = await compressImage(file, 400, 0.8)
-    console.log('✅ 图片压缩完成', {
-      原始大小: (file.size / 1024).toFixed(2) + 'KB',
-      压缩后大小: (compressedFile.size / 1024).toFixed(2) + 'KB'
-    })
 
     // 创建FormData
     const formData = new FormData()
@@ -124,7 +117,6 @@ export const uploadImageToAPI = async (
       xhr.upload.addEventListener('progress', (event) => {
         if (event.lengthComputable && onProgress) {
           const percent = Math.round((event.loaded / event.total) * 100)
-          console.log(`📊 上传进度: ${percent}%`)
           
           onProgress({
             loaded: event.loaded,
@@ -140,7 +132,6 @@ export const uploadImageToAPI = async (
           const response = JSON.parse(xhr.responseText)
           
           if (xhr.status === 200 && response.success) {
-            console.log('✅ 图片上传成功:', response.url)
             resolve({
               success: true,
               url: response.url
@@ -152,8 +143,7 @@ export const uploadImageToAPI = async (
               error: response.error || '上传失败'
             })
           }
-        } catch (error) {
-          console.error('❌ 解析响应失败:', error)
+        } catch {
           resolve({
             success: false,
             error: '服务器响应解析失败'
@@ -163,7 +153,6 @@ export const uploadImageToAPI = async (
       
       // 错误处理
       xhr.addEventListener('error', () => {
-        console.error('❌ 网络请求失败')
         resolve({
           success: false,
           error: '网络请求失败'
@@ -172,7 +161,6 @@ export const uploadImageToAPI = async (
       
       // 超时处理
       xhr.addEventListener('timeout', () => {
-        console.error('❌ 请求超时')
         resolve({
           success: false,
           error: '上传超时，请重试'

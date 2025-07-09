@@ -24,30 +24,24 @@ export function LotteryWinnerNotification({
 
   useEffect(() => {
     if (winner) {
-      console.log('🏆 [获奖弹窗] 显示获奖者:', winner)
       setIsVisible(true)
       
       // 根据是否是绝地翻盘设置不同的显示时间
       const isFinalLottery = winner.orderNumber === 0 // 绝地翻盘标识
       const displayTime = isFinalLottery ? 10000 : 3000 // 绝地翻盘10秒，普通抽奖3秒
-      const timeText = isFinalLottery ? '10秒' : '3秒'
       
       const timer = setTimeout(() => {
-        console.log(`⏰ [获奖弹窗] ${timeText}后开始关闭动画`)
         setIsVisible(false)
         setTimeout(() => {
-          console.log('🚫 [获奖弹窗] 动画完成，调用onClose')
           onClose()
         }, 300) // 等待动画完成后调用onClose
       }, displayTime)
 
       return () => {
-        console.log('🧹 [获奖弹窗] 清理定时器')
         clearTimeout(timer)
       }
     } else {
       // 当 winner 为 null 时，立即隐藏弹窗
-      console.log('❌ [获奖弹窗] winner为null，隐藏弹窗')
       setIsVisible(false)
     }
   }, [winner]) // 只依赖 winner，不依赖 onClose

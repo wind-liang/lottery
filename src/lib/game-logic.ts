@@ -168,22 +168,6 @@ export class GameLogic {
   // 选择奖励
   static async selectReward(userId: string, rewardId: string): Promise<boolean> {
     try {
-      console.log('🎯 [selectReward] 开始选择奖励:', { userId, rewardId })
-      
-      // 先查询用户信息
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('id, nickname, selected_reward')
-        .eq('id', userId)
-        .single()
-      
-      if (userError) {
-        console.error('🎯 [selectReward] 查询用户失败:', userError)
-        throw userError
-      }
-      
-      console.log('🎯 [selectReward] 用户信息:', user)
-      
       // 更新奖励表
       const { error: rewardError } = await supabase
         .from('rewards')
@@ -196,8 +180,6 @@ export class GameLogic {
         throw rewardError
       }
       
-      console.log('🎯 [selectReward] 奖励表更新成功')
-      
       // 更新用户的选择记录
       const { error: userUpdateError } = await supabase
         .from('users')
@@ -207,21 +189,6 @@ export class GameLogic {
       if (userUpdateError) {
         console.error('🎯 [selectReward] 更新用户失败:', userUpdateError)
         throw userUpdateError
-      }
-      
-      console.log('🎯 [selectReward] 用户表更新成功')
-      
-      // 验证更新结果
-      const { data: updatedUser, error: verifyError } = await supabase
-        .from('users')
-        .select('id, nickname, selected_reward')
-        .eq('id', userId)
-        .single()
-      
-      if (verifyError) {
-        console.error('🎯 [selectReward] 验证更新失败:', verifyError)
-      } else {
-        console.log('🎯 [selectReward] 验证更新结果:', updatedUser)
       }
       
       return true
@@ -272,8 +239,6 @@ export class GameLogic {
   // 获取下一个选择者
   static async getNextSelector(roomId: string): Promise<User | null> {
     try {
-      console.log('🔍 [getNextSelector] 开始查找下一个选择者，房间ID:', roomId)
-      
       const { data: players, error } = await supabase
         .from('users')
         .select('*')
@@ -287,27 +252,8 @@ export class GameLogic {
         throw error
       }
       
-      console.log('🔍 [getNextSelector] 找到的玩家列表:', players?.map(p => ({
-        id: p.id,
-        nickname: p.nickname,
-        orderNumber: p.order_number,
-        selectedReward: p.selected_reward,
-        hasSelected: !!p.selected_reward
-      })))
-      
       // 找到第一个还没有选择奖励的玩家
-      const nextPlayer = players?.find(player => {
-        const hasSelected = !!player.selected_reward
-        console.log(`🔍 [getNextSelector] 检查玩家 ${player.nickname} (Order: ${player.order_number}): hasSelected=${hasSelected}, selected_reward=${player.selected_reward}`)
-        return !hasSelected
-      })
-      
-      console.log('🔍 [getNextSelector] 找到的下一个选择者:', nextPlayer ? {
-        id: nextPlayer.id,
-        nickname: nextPlayer.nickname,
-        orderNumber: nextPlayer.order_number,
-        selectedReward: nextPlayer.selected_reward
-      } : '没有找到')
+      const nextPlayer = players?.find(player => !player.selected_reward)
       
       return nextPlayer || null
     } catch (error) {
@@ -338,16 +284,8 @@ export class GameLogic {
   // 创建绝地翻盘抽奖箱（按权重添加玩家到专门的绝地翻盘表）
   static async setupFinalLotteryBox(roomId: string): Promise<boolean> {
     try {
-      console.log('🎯 [setupFinalLotteryBox] 开始设置绝地翻盘抽奖箱，房间ID:', roomId)
-      
       // 先获取最后5名玩家，确保有合格玩家再清空
       const lastFivePlayers = await this.getLastFivePlayers(roomId)
-      
-      console.log('🎯 [setupFinalLotteryBox] 找到的最后5名玩家:', lastFivePlayers.map(p => ({
-        id: p.id,
-        nickname: p.nickname,
-        orderNumber: p.order_number
-      })))
       
       if (lastFivePlayers.length === 0) {
         console.error('❌ [setupFinalLotteryBox] 没有找到参与绝地翻盘的玩家')
@@ -355,7 +293,6 @@ export class GameLogic {
       }
       
       // 清空绝地翻盘抽奖参与者表
-      console.log('🎯 [setupFinalLotteryBox] 清空绝地翻盘抽奖参与者表...')
       const { error: deleteError } = await supabase
         .from('final_lottery_participants')
         .delete()
@@ -386,7 +323,7 @@ export class GameLogic {
       console.log(`🎯 [setupFinalLotteryBox] 准备插入 ${insertEntries.length} 个绝地翻盘玩家记录:`, insertEntries)
       
       // 批量插入抽奖条目到绝地翻盘表
-      const { data: insertData, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('final_lottery_participants')
         .insert(insertEntries)
       
@@ -394,24 +331,6 @@ export class GameLogic {
         console.error('❌ [setupFinalLotteryBox] 插入绝地翻盘抽奖条目失败:', insertError)
         return false
       }
-      
-      console.log('✅ [setupFinalLotteryBox] 绝地翻盘抽奖条目插入成功:', insertData)
-      
-      // 验证插入结果
-      const { data: verifyData, error: verifyError } = await supabase
-        .from('final_lottery_participants')
-        .select('*, users(nickname, order_number)')
-        .eq('room_id', roomId)
-      
-      if (verifyError) {
-        console.error('❌ [setupFinalLotteryBox] 验证绝地翻盘抽奖条目失败:', verifyError)
-        return false
-      }
-      
-      console.log(`✅ [setupFinalLotteryBox] 绝地翻盘抽奖箱设置完成！共 ${verifyData?.length || 0} 个玩家参与`)
-      verifyData?.forEach(entry => {
-        console.log(`  - ${entry.users?.nickname} (第${entry.users?.order_number}名): 权重 ${entry.weight}`)
-      })
       
       return true
     } catch (error) {
@@ -423,8 +342,6 @@ export class GameLogic {
   // 诊断绝地翻盘问题的函数
   static async diagnoseFinalLotteryIssue(roomId: string): Promise<void> {
     try {
-      console.log('🔍 [诊断] 开始诊断绝地翻盘问题，房间ID:', roomId)
-      
       // 1. 检查房间信息
       const { data: room, error: roomError } = await supabase
         .from('rooms')
@@ -437,11 +354,7 @@ export class GameLogic {
         return
       }
       
-      console.log('🔍 [诊断] 房间信息:', {
-        name: room.name,
-        stage: room.stage,
-        current_selector: room.current_selector
-      })
+
       
       // 2. 检查用户排名情况
       const { data: users, error: usersError } = await supabase
@@ -456,10 +369,7 @@ export class GameLogic {
         return
       }
       
-      console.log('🔍 [诊断] 有排名的用户:', users?.map(u => ({
-        nickname: u.nickname,
-        order: u.order_number
-      })) || [])
+
       
       // 3. 检查绝地翻盘抽奖参与者
       const { data: finalParticipants, error: finalParticipantsError } = await supabase
@@ -479,41 +389,14 @@ export class GameLogic {
         return
       }
       
-      console.log('🔍 [诊断] 绝地翻盘参与者数量:', finalParticipants?.length || 0)
-      
-      if (finalParticipants && finalParticipants.length > 0) {
-        // 计算总权重和概率
-        const totalWeight = finalParticipants.reduce((sum, p) => sum + p.weight, 0)
-        console.log('🔍 [诊断] 绝地翻盘参与者详情:')
-        finalParticipants.forEach(p => {
-          const probability = ((p.weight / totalWeight) * 100).toFixed(1)
-          console.log(`  - ${p.users?.nickname} (第${p.users?.order_number}名): 权重 ${p.weight}, 概率 ${probability}%, 已抽中: ${p.is_drawn}`)
-        })
-      } else {
-        console.log('🔍 [诊断] 绝地翻盘参与者详情: 无')
-      }
+
       
       // 4. 统计分析
       const totalUsers = users?.length || 0
       const totalFinalParticipants = finalParticipants?.length || 0
       const drawnFinalParticipants = finalParticipants?.filter(p => p.is_drawn).length || 0
       
-      console.log('🔍 [诊断] 统计信息:')
-      console.log(`  - 有排名的用户: ${totalUsers} 人`)
-      console.log(`  - 绝地翻盘参与者: ${totalFinalParticipants} 人`)
-      console.log(`  - 已抽中的参与者: ${drawnFinalParticipants} 人`)
-      console.log(`  - 剩余可抽参与者: ${totalFinalParticipants - drawnFinalParticipants} 人`)
-      
-      // 5. 问题诊断
-      if (totalUsers === 0) {
-        console.log('⚠️ [诊断] 问题: 没有用户有排名，需要先完成第一轮抽奖')
-      } else if (totalFinalParticipants === 0) {
-        console.log('⚠️ [诊断] 问题: 绝地翻盘抽奖箱为空，需要点击"进入绝地翻盘"按钮设置')
-      } else if (totalFinalParticipants === drawnFinalParticipants) {
-        console.log('⚠️ [诊断] 问题: 所有绝地翻盘参与者都已抽完')
-      } else {
-        console.log('✅ [诊断] 绝地翻盘功能正常，可以进行抽奖')
-      }
+
       
     } catch (error) {
       console.error('❌ [诊断] 诊断过程出错:', error)
@@ -523,8 +406,6 @@ export class GameLogic {
   // 抽取绝地翻盘获胜者（使用加权随机算法）
   static async drawFinalLotteryWinner(roomId: string): Promise<User | null> {
     try {
-      console.log('🎯 [drawFinalLotteryWinner] 开始绝地翻盘抽奖，房间ID:', roomId)
-      
       // 获取所有未被抽中的绝地翻盘参与者
       const { data: participants, error } = await supabase
         .from('final_lottery_participants')
@@ -544,26 +425,15 @@ export class GameLogic {
         return null
       }
       
-      console.log('🎯 [drawFinalLotteryWinner] 绝地翻盘参与者数量:', participants?.length || 0)
-      
       if (!participants || participants.length === 0) {
-        console.log('❌ [drawFinalLotteryWinner] 没有绝地翻盘参与者可以抽取')
         return null
       }
       
       // 计算总权重
       const totalWeight = participants.reduce((sum, p) => sum + p.weight, 0)
-      console.log('🎯 [drawFinalLotteryWinner] 总权重:', totalWeight)
-      
-      // 显示每个参与者的权重和概率
-      participants.forEach(p => {
-        const probability = ((p.weight / totalWeight) * 100).toFixed(1)
-        console.log(`  - ${p.users?.nickname}: 权重 ${p.weight}, 中奖概率 ${probability}%`)
-      })
       
       // 生成随机数 (0 到 totalWeight-1)
       const randomWeight = Math.floor(Math.random() * totalWeight)
-      console.log('🎯 [drawFinalLotteryWinner] 随机权重值:', randomWeight)
       
       // 根据权重分布选择获胜者
       let currentWeight = 0
@@ -582,8 +452,6 @@ export class GameLogic {
         return null
       }
       
-      console.log('🎯 [drawFinalLotteryWinner] 选中的绝地翻盘获胜者:', selectedParticipant.users?.nickname)
-      
       // 标记该参与者为已抽中
       const { error: updateError } = await supabase
         .from('final_lottery_participants')
@@ -597,8 +465,6 @@ export class GameLogic {
         console.error('❌ [drawFinalLotteryWinner] 更新绝地翻盘抽奖状态失败:', updateError)
         return null
       }
-      
-      console.log('✅ [drawFinalLotteryWinner] 绝地翻盘获胜者抽取成功')
       
       return selectedParticipant.users
     } catch (error) {
@@ -645,13 +511,6 @@ export class GameLogic {
       const expiresAt = new Date()
       expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
       
-      console.log('🎭 GameLogic.sendEmoji 开始:', {
-        userId,
-        roomId,
-        emoji,
-        expiresAt: expiresAt.toISOString()
-      })
-      
       // 先检查用户是否存在
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
@@ -663,8 +522,6 @@ export class GameLogic {
         console.error('🎭 查询用户失败:', checkError)
         throw checkError
       }
-      
-      console.log('🎭 找到用户:', existingUser)
       
       const { data, error } = await supabase
         .from('users')
@@ -680,8 +537,6 @@ export class GameLogic {
         throw error
       }
       
-      console.log('🎭 数据库更新成功:', data)
-      
       // 验证更新结果
       if (!data || data.length === 0) {
         console.error('🎭 更新失败：没有找到匹配的用户记录')
@@ -696,8 +551,6 @@ export class GameLogic {
         })
         throw new Error('表情字段更新不正确')
       }
-      
-      console.log('🎭 表情更新验证成功:', updatedUser)
       
       // 再次查询数据库验证是否真的更新了
       console.log('🔍 重新查询数据库验证更新结果...')

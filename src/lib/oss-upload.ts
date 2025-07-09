@@ -40,8 +40,6 @@ export const uploadImageToOSS = async (
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadResult> => {
   try {
-    console.log('🔄 开始上传图片到OSS...', file.name)
-    
     // 验证图片
     const validation = validateImage(file)
     if (!validation.valid) {
@@ -52,26 +50,18 @@ export const uploadImageToOSS = async (
     }
 
     // 压缩图片
-    console.log('🔄 压缩图片中...')
     const compressedFile = await compressImage(file, 400, 0.8)
-    console.log('✅ 图片压缩完成', {
-      原始大小: (file.size / 1024).toFixed(2) + 'KB',
-      压缩后大小: (compressedFile.size / 1024).toFixed(2) + 'KB'
-    })
 
     // 生成文件名
     const fileName = generateFileName(compressedFile)
-    console.log('📁 生成文件名:', fileName)
 
     // 创建OSS客户端（动态导入）
     const client = await createOSSClient()
 
     // 上传文件
-    console.log('⬆️ 上传文件到OSS...')
     await client.multipartUpload(fileName, compressedFile, {
       progress: (p: number) => {
         const percent = Math.round(p * 100)
-        console.log(`📊 上传进度: ${percent}%`)
         
         if (onProgress) {
           onProgress({
@@ -86,8 +76,6 @@ export const uploadImageToOSS = async (
     // 构建访问URL
     const config = getOSSConfig()
     const url = `https://${config.bucket}.${config.region}.aliyuncs.com/${fileName}`
-    
-    console.log('✅ 图片上传成功:', url)
     
     return {
       success: true,
@@ -128,7 +116,6 @@ export const deleteImageFromOSS = async (url: string): Promise<boolean> => {
     const fileName = url.replace(`https://${config.bucket}.${config.region}.aliyuncs.com/`, '')
     
     await client.delete(fileName)
-    console.log('✅ 图片删除成功:', fileName)
     return true
   } catch (error) {
     console.error('❌ 图片删除失败:', error)

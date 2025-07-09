@@ -18,8 +18,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
     if (!userId || !roomId) return
 
     try {
-      console.log('🔄 [Presence] 更新用户状态:', { userId, isOnline })
-      
       const { error } = await supabase
         .from('users')
         .update({ 
@@ -30,8 +28,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
 
       if (error) {
         console.error('❌ [Presence] 更新用户状态失败:', error)
-      } else {
-        console.log('✅ [Presence] 用户状态更新成功:', isOnline ? '在线' : '离线')
       }
     } catch (error) {
       console.error('❌ [Presence] 更新用户状态异常:', error)
@@ -52,8 +48,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
     lastHeartbeatRef.current = now
 
     try {
-      console.log('💓 [Presence] 发送心跳...')
-      
       const { error } = await supabase
         .from('users')
         .update({ 
@@ -64,8 +58,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
 
       if (error) {
         console.error('❌ [Presence] 心跳发送失败:', error)
-      } else {
-        console.log('✅ [Presence] 心跳发送成功')
       }
     } catch (error) {
       console.error('❌ [Presence] 心跳发送异常:', error)
@@ -88,8 +80,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
       clearInterval(heartbeatIntervalRef.current)
     }
 
-    console.log('💓 [Presence] 开始心跳检测...')
-    
     // 立即发送一次心跳
     sendHeartbeat()
     
@@ -100,7 +90,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
   // 停止心跳检测
   const stopHeartbeat = useCallback(() => {
     if (heartbeatIntervalRef.current) {
-      console.log('💓 [Presence] 停止心跳检测')
       clearInterval(heartbeatIntervalRef.current)
       heartbeatIntervalRef.current = null
     }
@@ -109,17 +98,14 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
   // 页面可见性变化处理
   const handleVisibilityChange = useCallback(() => {
     if (document.visibilityState === 'visible') {
-      console.log('👀 [Presence] 页面变为可见，恢复心跳')
       startHeartbeat()
     } else {
-      console.log('👀 [Presence] 页面变为隐藏，停止心跳')
       stopHeartbeat()
     }
   }, [startHeartbeat, stopHeartbeat])
 
   // 页面卸载处理
   const handleBeforeUnload = useCallback(() => {
-    console.log('👋 [Presence] 页面即将卸载，设置用户离线')
     // 使用同步方式设置用户离线
     if (userId && roomId) {
       navigator.sendBeacon('/api/user-offline', JSON.stringify({ userId }))
@@ -128,19 +114,15 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
 
   // 网络状态变化处理
   const handleOnline = useCallback(() => {
-    console.log('🌐 [Presence] 网络恢复，恢复心跳')
     startHeartbeat()
   }, [startHeartbeat])
 
   const handleOffline = useCallback(() => {
-    console.log('🌐 [Presence] 网络断开，停止心跳')
     stopHeartbeat()
   }, [stopHeartbeat])
 
   useEffect(() => {
     if (!enabled || !userId || !roomId) return
-
-    console.log('🚀 [Presence] 初始化用户状态管理...')
 
     // 设置用户在线并开始心跳
     setUserOnline()
@@ -177,8 +159,6 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
     document.addEventListener('keypress', throttledActivity)
 
     return () => {
-      console.log('🔌 [Presence] 清理用户状态管理...')
-      
       // 设置用户离线
       setUserOffline()
       

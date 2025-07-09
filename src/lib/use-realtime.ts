@@ -34,8 +34,6 @@ export function useRealtime({
   const fetchRoomUsers = useCallback(async () => {
     if (!roomId) return
 
-    console.log('🔄 [Realtime] 获取房间用户列表...')
-    
     try {
       const { data: users, error } = await supabase
         .from('users')
@@ -49,10 +47,6 @@ export function useRealtime({
         return
       }
 
-      const onlineCount = users?.filter(u => u.is_online).length || 0
-      const offlineCount = users?.filter(u => !u.is_online).length || 0
-      console.log('✅ [Realtime] 获取到用户列表:', users?.length || 0, '个用户 (在线:', onlineCount, '离线:', offlineCount, ')')
-      
       // 检测新用户加入和用户离开
       const currentUsers = users || []
       const lastUsers = lastUsersRef.current
@@ -77,17 +71,14 @@ export function useRealtime({
         })
         
         newUsers.forEach(user => {
-          console.log('🆕 [Realtime] 新用户加入:', user.nickname)
           onUserJoined?.(user)
         })
         
         leftUsers.forEach(user => {
-          console.log('👋 [Realtime] 用户离开:', user.nickname)
           onUserLeft?.(user.id)
         })
         
         newWinners.forEach(winner => {
-          console.log('🏆 [Realtime] 检测到新获奖者:', winner.nickname, '排名:', winner.order_number)
           if (onWinnerDrawn && winner.order_number) {
             onWinnerDrawn({
               userId: winner.id,
@@ -110,8 +101,6 @@ export function useRealtime({
   const fetchRoom = useCallback(async () => {
     if (!roomId) return
 
-    console.log('🔄 [Realtime] 获取房间信息...')
-    
     const { data: room, error } = await supabase
       .from('rooms')
       .select('*')
@@ -123,7 +112,6 @@ export function useRealtime({
       return
     }
 
-    console.log('✅ [Realtime] 获取到房间信息:', room?.name)
     onRoomChange?.(room)
   }, [roomId, onRoomChange])
 
@@ -154,8 +142,6 @@ export function useRealtime({
   useEffect(() => {
     if (!roomId) return
 
-    console.log('🔌 [Realtime] 设置实时订阅...')
-
     // 清理之前的订阅
     channelsRef.current.forEach(channel => {
       supabase.removeChannel(channel)
@@ -173,9 +159,7 @@ export function useRealtime({
           table: 'users',
           filter: `room_id=eq.${roomId}`,
         },
-        (payload) => {
-          console.log('🔄 [Realtime] 用户数据变化:', payload.eventType, payload.new || payload.old)
-          
+        () => {
           // 使用防抖延迟请求
           debouncedFetchUsers()
         }
@@ -193,8 +177,7 @@ export function useRealtime({
           table: 'rooms',
           filter: `id=eq.${roomId}`,
         },
-        (payload) => {
-          console.log('🔄 [Realtime] 房间数据变化:', payload.eventType, payload.new || payload.old)
+        () => {
           debouncedFetchRoom()
         }
       )
@@ -212,8 +195,6 @@ export function useRealtime({
           filter: `room_id=eq.${roomId}`,
         },
         async (payload) => {
-          console.log('🎭 [Realtime] 新表情数据:', payload.new)
-          
           if (payload.new) {
             try {
               // 获取发送表情的用户信息
@@ -224,7 +205,6 @@ export function useRealtime({
                 .single()
 
               if (user) {
-                console.log('🎭 [Realtime] 表情发送者:', user.nickname)
                 onEmojiReceived?.({
                   userId: payload.new.user_id,
                   emoji: payload.new.emoji,
@@ -249,11 +229,8 @@ export function useRealtime({
     fetchRoomUsers()
     fetchRoom()
 
-    console.log('✅ [Realtime] 实时订阅设置完成')
-
     // 清理函数
     return () => {
-      console.log('🔌 [Realtime] 清理实时订阅...')
       channelsRef.current.forEach(channel => {
         supabase.removeChannel(channel)
       })

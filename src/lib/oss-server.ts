@@ -72,13 +72,10 @@ export const uploadImageToServerOSS = async (file: Buffer, fileName: string): Pr
     })
 
     // 上传文件
-    console.log('🔄 服务端上传文件到OSS...', fileName)
     await client.put(fileName, file)
     
     // 构建访问URL
     const url = `https://${config.bucket}.${config.region}.aliyuncs.com/${fileName}`
-    
-    console.log('✅ 服务端上传成功:', url)
     
     return {
       success: true,
