@@ -354,7 +354,7 @@ export class GameLogic {
         return
       }
       
-
+      console.log('🏠 [诊断] 房间信息:', room)
       
       // 2. 检查用户排名情况
       const { data: users, error: usersError } = await supabase
@@ -369,7 +369,7 @@ export class GameLogic {
         return
       }
       
-
+      console.log('👥 [诊断] 用户排名:', users)
       
       // 3. 检查绝地翻盘抽奖参与者
       const { data: finalParticipants, error: finalParticipantsError } = await supabase
@@ -389,14 +389,18 @@ export class GameLogic {
         return
       }
       
-
+      console.log('🎲 [诊断] 绝地翻盘参与者:', finalParticipants)
       
       // 4. 统计分析
       const totalUsers = users?.length || 0
       const totalFinalParticipants = finalParticipants?.length || 0
       const drawnFinalParticipants = finalParticipants?.filter(p => p.is_drawn).length || 0
       
-
+      console.log('📊 [诊断] 统计分析:', {
+        totalUsers,
+        totalFinalParticipants,
+        drawnFinalParticipants
+      })
       
     } catch (error) {
       console.error('❌ [诊断] 诊断过程出错:', error)
@@ -522,6 +526,8 @@ export class GameLogic {
         console.error('🎭 查询用户失败:', checkError)
         throw checkError
       }
+      
+      console.log('🎭 [发送表情] 用户检查:', existingUser)
       
       const { data, error } = await supabase
         .from('users')
