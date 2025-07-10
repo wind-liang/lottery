@@ -53,7 +53,10 @@ export function ComebackModal({
               clearInterval(timerRef.current)
               timerRef.current = null
             }
-            onCompleteRef.current()
+            // 使用 setTimeout 确保在渲染周期完成后再调用回调
+            setTimeout(() => {
+              onCompleteRef.current()
+            }, 0)
             return 0
           }
           return newValue
