@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Play, RotateCcw, X } from 'lucide-react'
+import { Play, X } from 'lucide-react'
 import { GameLogic } from '@/lib/game-logic'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
@@ -287,58 +287,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     }
   }
 
-  // 测试实时监听的函数
-  const handleTestRealtimeListener = async () => {
-    if (!isHost) return
-    
-    console.log('🧪 [测试] 开始测试实时监听')
-    
-    try {
-      // 先查找任何绝地翻盘参与者（不论是否已被抽中）
-      const { data: participant } = await supabase
-        .from('final_lottery_participants')
-        .select('*')
-        .eq('room_id', room.id)
-        .limit(1)
-        .single()
-      
-      if (!participant) {
-        alert('没有找到绝地翻盘参与者进行测试')
-        return
-      }
-      
-      console.log('🧪 [测试] 找到测试参与者:', participant)
-      
-      // 先重置状态（设为未抽中）
-      console.log('🧪 [测试] 重置参与者状态...')
-      await supabase
-        .from('final_lottery_participants')
-        .update({ is_drawn: false, drawn_at: null })
-        .eq('id', participant.id)
-      
-      // 等待一下确保数据库更新完成
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // 然后设置为已抽中，触发实时监听
-      console.log('🧪 [测试] 触发实时监听...')
-      const { error } = await supabase
-        .from('final_lottery_participants')
-        .update({ is_drawn: true, drawn_at: new Date().toISOString() })
-        .eq('id', participant.id)
-      
-      if (error) {
-        console.error('🧪 [测试] 更新失败:', error)
-        alert('测试更新失败')
-        return
-      }
-      
-      console.log('🧪 [测试] 数据库更新成功，等待实时监听响应...')
-      
-    } catch (error) {
-      console.error('🧪 [测试] 测试失败:', error)
-      alert('测试失败: ' + String(error))
-    }
-  }
+
 
   const confirmAction = (title: string, message: string, action: () => void) => {
     setShowConfirmModal({ title, message, action })
@@ -501,15 +450,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 {isLoading ? '抽奖中...' : '抽取绝地翻盘奖'}
               </button>
               
-              {/* 测试实时监听按钮 */}
-              <button
-                onClick={handleTestRealtimeListener}
-                disabled={isLoading}
-                className="w-full px-3 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>🧪 测试实时监听</span>
-              </button>
+
             </div>
           )}
 
