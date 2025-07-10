@@ -410,6 +410,8 @@ export class GameLogic {
   // 抽取绝地翻盘获胜者（使用加权随机算法）
   static async drawFinalLotteryWinner(roomId: string): Promise<User | null> {
     try {
+      console.log('🎯 [drawFinalLotteryWinner] 开始获取绝地翻盘参与者')
+      
       // 获取所有未被抽中的绝地翻盘参与者
       const { data: participants, error } = await supabase
         .from('final_lottery_participants')
@@ -429,15 +431,20 @@ export class GameLogic {
         return null
       }
       
+      console.log('🎯 [drawFinalLotteryWinner] 获取到参与者:', participants?.length || 0)
+      
       if (!participants || participants.length === 0) {
+        console.error('❌ [drawFinalLotteryWinner] 没有找到参与者')
         return null
       }
       
       // 计算总权重
       const totalWeight = participants.reduce((sum, p) => sum + p.weight, 0)
+      console.log('🎯 [drawFinalLotteryWinner] 总权重:', totalWeight)
       
       // 生成随机数 (0 到 totalWeight-1)
       const randomWeight = Math.floor(Math.random() * totalWeight)
+      console.log('🎯 [drawFinalLotteryWinner] 随机权重:', randomWeight)
       
       // 根据权重分布选择获胜者
       let currentWeight = 0
@@ -456,7 +463,11 @@ export class GameLogic {
         return null
       }
       
+      console.log('🎯 [drawFinalLotteryWinner] 选中的参与者:', selectedParticipant.users.nickname)
+      console.log('🎯 [drawFinalLotteryWinner] 参与者ID:', selectedParticipant.id)
+      
       // 标记该参与者为已抽中
+      console.log('🎯 [drawFinalLotteryWinner] 开始更新数据库...')
       const { error: updateError } = await supabase
         .from('final_lottery_participants')
         .update({ 
@@ -469,6 +480,17 @@ export class GameLogic {
         console.error('❌ [drawFinalLotteryWinner] 更新绝地翻盘抽奖状态失败:', updateError)
         return null
       }
+      
+      console.log('✅ [drawFinalLotteryWinner] 数据库更新成功，应该触发实时监听')
+      
+      // 验证更新是否成功
+      const { data: verifyData } = await supabase
+        .from('final_lottery_participants')
+        .select('*')
+        .eq('id', selectedParticipant.id)
+        .single()
+      
+      console.log('🔍 [drawFinalLotteryWinner] 验证更新结果:', verifyData)
       
       return selectedParticipant.users
     } catch (error) {

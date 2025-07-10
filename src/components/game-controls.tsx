@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Play, X } from 'lucide-react'
+import { Play, RotateCcw, X } from 'lucide-react'
 import { GameLogic } from '@/lib/game-logic'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -235,16 +236,41 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
       }
 
       console.log('🎯 [绝地翻盘] 抽中用户:', winner.nickname)
+      console.log('🎯 [绝地翻盘] 主持人客户端触发获奖通知')
 
       // 触发获奖通知（绝地翻盘获胜者不需要order_number）
       if (onWinnerDrawn) {
+        console.log('🎯 [绝地翻盘] 调用 onWinnerDrawn 回调')
         onWinnerDrawn({
           userId: winner.id,
           nickname: winner.nickname,
           orderNumber: 0, // 绝地翻盘获胜者特殊标识
           avatar: winner.avatar_url || undefined
         })
+      } else {
+        console.error('🎯 [绝地翻盘] onWinnerDrawn 回调不存在')
       }
+
+      // 手动广播机制：向用户表添加一个临时字段来触发所有客户端的实时监听
+      console.log('🎯 [绝地翻盘] 启动手动广播机制...')
+      try {
+        // 更新获奖者的一个字段来触发实时监听（所有客户端都在监听用户表）
+        await supabase
+          .from('users')
+          .update({ 
+            current_emoji: '🏆', // 临时设置一个表情
+            emoji_expires_at: new Date(Date.now() + 1000).toISOString() // 1秒后过期
+          })
+          .eq('id', winner.id)
+        
+        console.log('🎯 [绝地翻盘] 手动广播成功')
+      } catch (broadcastError) {
+        console.error('🎯 [绝地翻盘] 手动广播失败:', broadcastError)
+      }
+
+      // 等待一下确保数据库更新和实时监听有时间处理
+      console.log('🎯 [绝地翻盘] 等待实时监听处理...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
       // 等待5秒后进入完结阶段
       setTimeout(async () => {
@@ -258,6 +284,59 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
       alert('绝地翻盘抽奖失败，请重试')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // 测试实时监听的函数
+  const handleTestRealtimeListener = async () => {
+    if (!isHost) return
+    
+    console.log('🧪 [测试] 开始测试实时监听')
+    
+    try {
+      // 先查找任何绝地翻盘参与者（不论是否已被抽中）
+      const { data: participant } = await supabase
+        .from('final_lottery_participants')
+        .select('*')
+        .eq('room_id', room.id)
+        .limit(1)
+        .single()
+      
+      if (!participant) {
+        alert('没有找到绝地翻盘参与者进行测试')
+        return
+      }
+      
+      console.log('🧪 [测试] 找到测试参与者:', participant)
+      
+      // 先重置状态（设为未抽中）
+      console.log('🧪 [测试] 重置参与者状态...')
+      await supabase
+        .from('final_lottery_participants')
+        .update({ is_drawn: false, drawn_at: null })
+        .eq('id', participant.id)
+      
+      // 等待一下确保数据库更新完成
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // 然后设置为已抽中，触发实时监听
+      console.log('🧪 [测试] 触发实时监听...')
+      const { error } = await supabase
+        .from('final_lottery_participants')
+        .update({ is_drawn: true, drawn_at: new Date().toISOString() })
+        .eq('id', participant.id)
+      
+      if (error) {
+        console.error('🧪 [测试] 更新失败:', error)
+        alert('测试更新失败')
+        return
+      }
+      
+      console.log('🧪 [测试] 数据库更新成功，等待实时监听响应...')
+      
+    } catch (error) {
+      console.error('🧪 [测试] 测试失败:', error)
+      alert('测试失败: ' + String(error))
     }
   }
 
@@ -420,6 +499,16 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 className="w-full px-4 py-3 bg-gradient-to-r from-red-400 to-red-600 text-white rounded-lg font-medium hover:from-red-500 hover:to-red-700 disabled:opacity-50"
               >
                 {isLoading ? '抽奖中...' : '抽取绝地翻盘奖'}
+              </button>
+              
+              {/* 测试实时监听按钮 */}
+              <button
+                onClick={handleTestRealtimeListener}
+                disabled={isLoading}
+                className="w-full px-3 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>🧪 测试实时监听</span>
               </button>
             </div>
           )}

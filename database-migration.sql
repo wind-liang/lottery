@@ -43,3 +43,10 @@ COMMENT ON COLUMN final_lottery_participants.user_id IS '用户ID';
 COMMENT ON COLUMN final_lottery_participants.weight IS '抽奖权重，数值越大中奖概率越高';
 COMMENT ON COLUMN final_lottery_participants.is_drawn IS '是否已被抽中';
 COMMENT ON COLUMN final_lottery_participants.drawn_at IS '抽中时间'; 
+
+-- 启用实时功能
+ALTER TABLE final_lottery_participants ENABLE ROW LEVEL SECURITY;
+
+-- 基础安全策略（允许所有操作）
+CREATE POLICY "Enable all operations for final_lottery_participants" ON final_lottery_participants
+  FOR ALL USING (true); 

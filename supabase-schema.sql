@@ -115,6 +115,7 @@ CREATE TRIGGER update_rooms_updated_at
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lottery_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE final_lottery_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE emojis ENABLE ROW LEVEL SECURITY;
 
@@ -126,6 +127,9 @@ CREATE POLICY "Enable all operations for rooms" ON rooms
   FOR ALL USING (true);
 
 CREATE POLICY "Enable all operations for lottery_participants" ON lottery_participants
+  FOR ALL USING (true);
+
+CREATE POLICY "Enable all operations for final_lottery_participants" ON final_lottery_participants
   FOR ALL USING (true);
 
 CREATE POLICY "Enable all operations for rewards" ON rewards

@@ -102,9 +102,14 @@ export default function Home() {
   }, [users])
 
   const handleRealtimeWinnerDrawn = useCallback((winner: { userId: string; nickname: string; orderNumber: number; avatar?: string }) => {
-    console.log('🏆 [实时] 检测到获奖者:', winner)
+    console.log('🏆 [实时] 页面组件检测到获奖者:', winner)
+    console.log('🏆 [实时] 是否是绝地翻盘:', winner.orderNumber === 0)
+    console.log('🏆 [实时] 当前用户:', currentUser?.nickname)
+    
     // 显示获奖弹窗
     setLotteryWinner(winner)
+    console.log('🏆 [实时] 已设置获奖弹窗状态')
+    
     // 不再显示顶部小通知，只显示弹窗
   }, [currentUser])
 

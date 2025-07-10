@@ -70,6 +70,14 @@ export function useRealtime({
                  currentUser.order_number !== null
         })
         
+        // 检测绝地翻盘获奖者（通过表情 🏆 标识）
+        const finalLotteryWinners = currentUsers.filter(currentUser => {
+          const lastUser = lastUsers.find(lu => lu.id === currentUser.id)
+          return lastUser && 
+                 lastUser.current_emoji !== '🏆' && 
+                 currentUser.current_emoji === '🏆'
+        })
+        
         newUsers.forEach(user => {
           onUserJoined?.(user)
         })
@@ -84,6 +92,19 @@ export function useRealtime({
               userId: winner.id,
               nickname: winner.nickname,
               orderNumber: winner.order_number,
+              avatar: winner.avatar_url || undefined
+            })
+          }
+        })
+        
+        // 处理绝地翻盘获奖者
+        finalLotteryWinners.forEach(winner => {
+          if (onWinnerDrawn) {
+            console.log('🏆 [Realtime] 从用户表检测到绝地翻盘获奖者:', winner.nickname)
+            onWinnerDrawn({
+              userId: winner.id,
+              nickname: winner.nickname,
+              orderNumber: 0, // 绝地翻盘获胜者特殊标识
               avatar: winner.avatar_url || undefined
             })
           }
@@ -222,8 +243,80 @@ export function useRealtime({
       )
       .subscribe()
 
+    // 绝地翻盘参与者表订阅
+    const finalLotteryChannel = supabase
+      .channel(`final_lottery_participants-${roomId}`, {
+        config: {
+          presence: {
+            key: 'final_lottery_participants'
+          }
+        }
+      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'final_lottery_participants',
+          filter: `room_id=eq.${roomId}`,
+        },
+        async (payload) => {
+          console.log('🔄 [Realtime] 绝地翻盘参与者表更新:', payload)
+          
+          if (payload.new && payload.new.is_drawn && !payload.old?.is_drawn) {
+            // 检测到绝地翻盘获奖者
+            console.log('🏆 [Realtime] 检测到绝地翻盘获奖者变更:', payload.new.user_id)
+            
+            try {
+              const { data: user } = await supabase
+                .from('users')
+                .select('id, nickname, avatar_url')
+                .eq('id', payload.new.user_id)
+                .single()
+
+              console.log('🏆 [Realtime] 获取到用户信息:', user)
+
+              if (user && onWinnerDrawn) {
+                console.log('🏆 [Realtime] 准备调用 onWinnerDrawn 回调:', user.nickname)
+                onWinnerDrawn({
+                  userId: user.id,
+                  nickname: user.nickname,
+                  orderNumber: 0, // 绝地翻盘获胜者特殊标识
+                  avatar: user.avatar_url || undefined
+                })
+                console.log('🏆 [Realtime] 成功调用 onWinnerDrawn 回调')
+              } else {
+                console.error('🏆 [Realtime] 无法调用 onWinnerDrawn:', { user, onWinnerDrawn: !!onWinnerDrawn })
+              }
+            } catch (error) {
+              console.error('❌ [Realtime] 获取绝地翻盘获奖者信息失败:', error)
+            }
+          } else {
+            console.log('🔄 [Realtime] 绝地翻盘参与者表更新但不是获奖者:', {
+              isDrawn: payload.new?.is_drawn,
+              oldIsDrawn: payload.old?.is_drawn
+            })
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('📡 [Realtime] 绝地翻盘订阅状态变更:', status)
+        if (err) {
+          console.error('❌ [Realtime] 绝地翻盘订阅错误:', err)
+        }
+        
+        // 如果连接关闭，尝试重连
+        if (status === 'CLOSED') {
+          console.log('🔄 [Realtime] 检测到连接关闭，2秒后尝试重连...')
+          setTimeout(() => {
+            console.log('🔄 [Realtime] 尝试重新订阅绝地翻盘频道...')
+            finalLotteryChannel.subscribe()
+          }, 2000)
+        }
+      })
+
     // 存储所有频道引用
-    channelsRef.current = [userChannel, roomChannel, emojiChannel]
+    channelsRef.current = [userChannel, roomChannel, emojiChannel, finalLotteryChannel]
 
     // 初始加载数据
     fetchRoomUsers()
