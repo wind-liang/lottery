@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { LoadingSpinner } from './loading-spinner'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -115,7 +114,7 @@ export function LoginForm({ onLoginSuccess, onError }: LoginFormProps) {
           >
             {loading ? (
               <>
-                <LoadingSpinner />
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span>登录中...</span>
               </>
             ) : (

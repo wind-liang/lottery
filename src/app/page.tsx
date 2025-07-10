@@ -50,11 +50,6 @@ export default function Home() {
         console.log('🧹 清理旧的用户设置数据')
         localStorage.removeItem('lottery_user_settings')
       }
-      
-      // 临时调试：强制清除所有用户数据以确保显示登录界面
-      // 可以在确认登录系统正常工作后移除这行
-      console.log('🔧 [调试] 强制清除所有用户数据')
-      localStorage.removeItem('lottery_user_id')
     }
     
     cleanupOldData()
