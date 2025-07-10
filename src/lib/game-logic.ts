@@ -7,22 +7,6 @@ type LotteryParticipant = Database['public']['Tables']['lottery_participants']['
 type Reward = Database['public']['Tables']['rewards']['Row']
 
 export class GameLogic {
-  // 生成随机昵称
-  static generateNickname(): string {
-    const adjectives = ['幸运的', '快乐的', '勇敢的', '聪明的', '可爱的', '优雅的', '神秘的', '闪亮的']
-    const nouns = ['小熊', '星星', '花朵', '彩虹', '蝴蝶', '珍珠', '钻石', '天使']
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const noun = nouns[Math.floor(Math.random() * nouns.length)]
-    const num = Math.floor(Math.random() * 999) + 1
-    return `${adj}${noun}${num}`
-  }
-
-  // 生成随机头像URL
-  static generateAvatarUrl(): string {
-    const avatarId = Math.floor(Math.random() * 1000000) + 1  // 增加随机性
-    const timestamp = Date.now()
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarId}-${timestamp}`
-  }
 
   // 验证主持人密码
   static verifyHostPassword(password: string): boolean {

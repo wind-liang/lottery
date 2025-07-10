@@ -50,3 +50,64 @@ ALTER TABLE final_lottery_participants ENABLE ROW LEVEL SECURITY;
 -- 基础安全策略（允许所有操作）
 CREATE POLICY "Enable all operations for final_lottery_participants" ON final_lottery_participants
   FOR ALL USING (true); 
+
+-- 添加password字段到users表
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password TEXT;
+
+-- 为password字段添加唯一约束（如果不存在）
+DO $$ 
+BEGIN 
+    BEGIN
+        ALTER TABLE users ADD CONSTRAINT unique_password UNIQUE (password);
+    EXCEPTION 
+        WHEN duplicate_table THEN 
+            -- 约束已存在，忽略错误
+            NULL;
+    END;
+END $$;
+
+-- 清空现有用户数据（如果需要重新导入）
+-- DELETE FROM users;
+
+-- 插入预定义用户数据
+INSERT INTO users (nickname, password, avatar_url, role, is_online) VALUES
+('四岗', 'sigang6291', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('超超', 'chaochao4878', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('凯', 'kai6351', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('黑鸭', 'heiya2250', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('阿男', 'anan1644', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('佳哥', 'jiage3397', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('帅皇', 'shuaihuang1809', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('东哥', 'dongge6549', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('凡王', 'fanwang8768', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('丁丁', 'dingding2364', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('二亮', 'erliang1669', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('鹏哥', 'pengge5373', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('学亮', 'xueliang1665', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('鱼子', 'yuzirry8232', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('丹子', 'danzibyt2576', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财1', 'gongxifacai1', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财2', 'gongxifacai2', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财3', 'gongxifacai3', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财4', 'gongxifacai4', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财5', 'gongxifacai5', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财6', 'gongxifacai6', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财7', 'gongxifacai7', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财8', 'gongxifacai8', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财9', 'gongxifacai9', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财10', 'gongxifacai10', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财11', 'gongxifacai11', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财12', 'gongxifacai12', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财13', 'gongxifacai13', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财14', 'gongxifacai14', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财15', 'gongxifacai15', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财16', 'gongxifacai16', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财17', 'gongxifacai17', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财18', 'gongxifacai18', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财19', 'gongxifacai19', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财20', 'gongxifacai20', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财21', 'gongxifacai21', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财22', 'gongxifacai22', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财23', 'gongxifacai23', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false),
+('恭喜发财24', 'gongxifacai24', 'https://windliangblog.oss-cn-beijing.aliyuncs.com/WechatIMG1290.jpg', 'audience', false)
+ON CONFLICT (password) DO NOTHING; 

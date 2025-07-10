@@ -9,15 +9,14 @@ import { GameControls } from '@/components/game-controls'
 import { EmojiPanel } from '@/components/emoji-panel'
 import { GameStage } from '@/components/game-stage'
 import { LoadingSpinner } from '@/components/loading-spinner'
-import { UserSettings } from '@/components/user-settings'
 import { RealtimeNotifications, addRealtimeNotification } from '@/components/realtime-notifications'
+import { LoginForm } from '@/components/login-form'
 import { LotteryWinnerNotification } from '@/components/lottery-winner-notification'
 import { RewardSelection } from '@/components/reward-selection'
 import { ComebackModal } from '@/components/comeback-modal'
 import { RewardViewer } from '@/components/reward-viewer'
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
-import { Settings } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -29,7 +28,7 @@ export default function Home() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [lotteryWinner, setLotteryWinner] = useState<{
     userId: string
     nickname: string
@@ -42,10 +41,35 @@ export default function Home() {
   // 使用 ref 来即时追踪弹窗显示状态，避免异步状态更新导致的多次触发
   const comebackModalShownRef = useRef(false)
 
-  // 初始化用户和房间
+  // 初始化应用
   useEffect(() => {
+    // 清理旧的localStorage数据，确保密码登录系统正常工作
+    const cleanupOldData = () => {
+      // 如果存在旧的用户设置数据，清除它
+      if (localStorage.getItem('lottery_user_settings')) {
+        console.log('🧹 清理旧的用户设置数据')
+        localStorage.removeItem('lottery_user_settings')
+      }
+      
+      // 临时调试：强制清除所有用户数据以确保显示登录界面
+      // 可以在确认登录系统正常工作后移除这行
+      console.log('🔧 [调试] 强制清除所有用户数据')
+      localStorage.removeItem('lottery_user_id')
+    }
+    
+    cleanupOldData()
     initializeApp()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 处理登录成功
+  const handleLoginSuccess = (user: User) => {
+    initializeApp(user)
+  }
+
+  // 处理登录错误
+  const handleLoginError = (errorMessage: string) => {
+    setError(errorMessage)
+  }
 
   // 使用 useCallback 优化回调函数，避免重复创建
   const handleUsersChange = useCallback((updatedUsers: User[]) => {
@@ -111,8 +135,6 @@ export default function Home() {
     // 显示获奖弹窗
     setLotteryWinner(winner)
     console.log('🏆 [实时] 已设置获奖弹窗状态')
-    
-    // 不再显示顶部小通知，只显示弹窗
   }, [currentUser])
 
   // 使用实时通信hook
@@ -145,19 +167,34 @@ export default function Home() {
     return () => clearInterval(cleanupInterval)
   }, [refreshUsers])
 
-  const initializeApp = async () => {
+  const initializeApp = async (user?: User) => {
     try {
       setLoading(true)
       setError(null)
       
       console.log('🚀 开始初始化应用...')
 
-      // 获取或创建用户
-      let user = await getOrCreateUser()
-      if (!user) {
-        throw new Error('无法创建用户')
+      let currentUserData = user
+      
+      // 如果没有传入用户，尝试从localStorage获取
+      if (!currentUserData) {
+        const storedUserId = localStorage.getItem('lottery_user_id')
+        if (storedUserId) {
+          const retrievedUser = await getUserById(storedUserId)
+          if (retrievedUser) {
+            currentUserData = retrievedUser
+          }
+        }
       }
-      console.log('✅ 用户创建/获取成功:', user)
+      
+      if (!currentUserData) {
+        // 用户未登录，显示登录界面
+        setIsLoggedIn(false)
+        setLoading(false)
+        return
+      }
+      
+      console.log('✅ 用户验证成功:', currentUserData)
 
       // 获取或创建房间
       const roomData = await getOrCreateRoom()
@@ -167,15 +204,16 @@ export default function Home() {
       console.log('✅ 房间获取成功:', roomData)
 
       // 将用户加入房间
-      user = await joinRoom(user.id, roomData.id)
-      if (!user) {
+      const updatedUser = await joinRoom(currentUserData.id, roomData.id)
+      if (!updatedUser) {
         throw new Error('无法加入房间')
       }
-      console.log('✅ 用户加入房间成功:', user)
+      console.log('✅ 用户加入房间成功:', updatedUser)
 
       // 设置状态
-      setCurrentUser(user)
+      setCurrentUser(updatedUser)
       setRoom(roomData)
+      setIsLoggedIn(true)
       console.log('✅ 状态设置完成')
       
       // 用户列表将由useRealtime hook自动管理
@@ -188,133 +226,52 @@ export default function Home() {
     }
   }
 
-  const getOrCreateUser = async (): Promise<User | null> => {
+  const getUserById = async (userId: string): Promise<User | null> => {
     try {
-      console.log('🔍 检查本地存储的用户ID...')
+      console.log('🔍 通过ID查询用户:', userId)
       
-      // 先尝试从 localStorage 获取用户ID
-      const storedUserId = localStorage.getItem('lottery_user_id')
-      console.log('📦 本地用户ID:', storedUserId)
+      const { data: existingUser, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
       
-      if (storedUserId) {
-        console.log('🔍 查询现有用户...')
-        const { data: existingUser, error } = await supabase
+      if (!error && existingUser) {
+        console.log('✅ 找到现有用户:', existingUser)
+        
+        // 检查用户是否有密码，如果没有密码则认为是旧用户，需要重新登录
+        if (!existingUser.password) {
+          console.log('⚠️ 用户没有密码，清除localStorage并要求重新登录')
+          localStorage.removeItem('lottery_user_id')
+          return null
+        }
+        
+        // 标记用户为在线
+        const { data: updatedUser, error: updateError } = await supabase
           .from('users')
-          .select('*')
-          .eq('id', storedUserId)
+          .update({ 
+            is_online: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingUser.id)
+          .select()
           .single()
         
-        if (!error && existingUser) {
-          console.log('✅ 找到现有用户:', existingUser)
-          
-          // 检查localStorage中是否有更新的用户设置
-          const storedSettings = localStorage.getItem('lottery_user_settings')
-          if (storedSettings) {
-            try {
-              const settings = JSON.parse(storedSettings)
-              console.log('📦 找到本地用户设置:', settings)
-              
-              // 检查是否需要同步到数据库
-              const needsUpdate = 
-                settings.nickname !== existingUser.nickname ||
-                settings.avatar_url !== existingUser.avatar_url
-              
-              if (needsUpdate) {
-                console.log('🔄 同步本地设置到数据库...')
-                const { data: updatedUser, error: updateError } = await supabase
-                  .from('users')
-                  .update({
-                    nickname: settings.nickname,
-                    avatar_url: settings.avatar_url,
-                    is_online: true,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', existingUser.id)
-                  .select()
-                  .single()
-                
-                if (updateError) {
-                  console.error('⚠️ 同步设置失败:', updateError)
-                } else {
-                  console.log('✅ 设置同步成功:', updatedUser)
-                  return updatedUser
-                }
-              }
-            } catch (e) {
-              console.error('⚠️ 解析本地设置失败:', e)
-            }
-          }
-          
-          // 标记用户为在线
-          await supabase
-            .from('users')
-            .update({ is_online: true })
-            .eq('id', existingUser.id)
-          
+        if (updateError) {
+          console.error('⚠️ 更新在线状态失败:', updateError)
           return existingUser
-        } else {
-          console.log('⚠️ 现有用户查询失败:', error)
         }
+        
+        return updatedUser
+      } else {
+        console.log('⚠️ 用户查询失败或用户不存在:', error)
+        // 清除无效的localStorage数据
+        localStorage.removeItem('lottery_user_id')
+        return null
       }
-
-      // 创建新用户
-      console.log('🆕 创建新用户...')
-      
-      // 检查localStorage中是否有用户设置
-      const storedSettings = localStorage.getItem('lottery_user_settings')
-      let nickname = GameLogic.generateNickname()
-      let avatarUrl = GameLogic.generateAvatarUrl()
-      
-      if (storedSettings) {
-        try {
-          const settings = JSON.parse(storedSettings)
-          if (settings.nickname) {
-            nickname = settings.nickname
-            console.log('📦 使用本地昵称:', nickname)
-          }
-          if (settings.avatar_url) {
-            avatarUrl = settings.avatar_url
-            console.log('📦 使用本地头像:', avatarUrl)
-          }
-        } catch (e) {
-          console.error('⚠️ 解析本地设置失败:', e)
-        }
-      }
-      
-      console.log('👤 生成用户信息:', { nickname, avatarUrl })
-      
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert({
-          nickname,
-          avatar_url: avatarUrl,
-          role: 'audience',
-          is_online: true
-        })
-        .select()
-        .single()
-
-      if (error) {
-        console.error('❌ 创建用户失败:', error)
-        throw error
-      }
-
-      console.log('✅ 新用户创建成功:', newUser)
-      
-      // 存储用户ID到 localStorage
-      localStorage.setItem('lottery_user_id', newUser.id)
-      
-      // 同步用户设置到localStorage
-      const userSettings = {
-        nickname: newUser.nickname,
-        avatar_url: newUser.avatar_url,
-        updated_at: new Date().toISOString()
-      }
-      localStorage.setItem('lottery_user_settings', JSON.stringify(userSettings))
-      
-      return newUser
     } catch (error) {
-      console.error('❌ 获取或创建用户失败:', error)
+      console.error('❌ 获取用户失败:', error)
+      localStorage.removeItem('lottery_user_id')
       return null
     }
   }
@@ -368,8 +325,6 @@ export default function Home() {
       return null
     }
   }
-
-  // fetchUsers和fetchRoom函数已经由useRealtime hook管理，不再需要单独定义
 
   const updateUserRole = async (userId: string, role: User['role']) => {
     try {
@@ -475,34 +430,6 @@ export default function Home() {
     }
   }
 
-  const updateUserInfo = async (updatedUser: User) => {
-    try {
-      console.log('🔄 更新用户信息:', updatedUser)
-      
-      // 更新当前用户状态
-      if (currentUser?.id === updatedUser.id) {
-        setCurrentUser(updatedUser)
-      }
-      
-      // 更新用户列表中的用户信息
-      setUsers(prev => prev.map(user => 
-        user.id === updatedUser.id ? updatedUser : user
-      ))
-      
-      // 同步到localStorage
-      const userSettings = {
-        nickname: updatedUser.nickname,
-        avatar_url: updatedUser.avatar_url,
-        updated_at: new Date().toISOString()
-      }
-      localStorage.setItem('lottery_user_settings', JSON.stringify(userSettings))
-      
-      console.log('✅ 用户信息更新成功')
-    } catch (error) {
-      console.error('❌ 更新用户信息失败:', error)
-    }
-  }
-
   // 处理获奖通知
   const handleWinnerDrawn = (winner: {
     userId: string
@@ -519,8 +446,6 @@ export default function Home() {
     console.log('🚫 [获奖通知] 父组件关闭获奖通知')
     setLotteryWinner(null)
   }, [])
-
-
 
   // 绝地翻盘弹窗处理函数
   const handleComebackModalClose = () => {
@@ -590,6 +515,16 @@ export default function Home() {
     }
   }, [room?.stage, room?.id, users.filter(u => u.role === 'player' && u.order_number != null).map(u => u.selected_reward).join(',')]) // 只监听玩家的奖励选择状态变化
 
+  // 如果未登录，显示登录界面
+  if (!isLoggedIn && !loading) {
+    return (
+      <LoginForm
+        onLoginSuccess={handleLoginSuccess}
+        onError={handleLoginError}
+      />
+    )
+  }
+
   if (loading) {
     return <LoadingSpinner />
   }
@@ -601,7 +536,7 @@ export default function Home() {
           <h1 className="text-2xl font-bold mb-4">加载失败</h1>
           <p className="mb-4">{error}</p>
           <button
-            onClick={initializeApp}
+            onClick={() => initializeApp()}
             className="bg-white text-purple-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
           >
             重试
@@ -623,32 +558,12 @@ export default function Home() {
       {/* 游戏阶段指示器 */}
       <GameStage stage={room.stage} />
       
-      {/* 奖励查看器按钮 - 在设置按钮上方 */}
+      {/* 奖励查看器按钮 */}
       <RewardViewer 
         roomId={room.id}
         users={users}
-        className="fixed bottom-36 right-4 z-50"
+        className="fixed bottom-20 right-4 z-50"
       />
-      
-      {/* 设置按钮 - 在表情按钮上方对齐 */}
-      <div className="fixed bottom-20 right-4 z-50">
-        <button
-          onClick={() => setShowSettings(true)}
-          className="w-12 h-12 bg-white/20 backdrop-blur-sm text-white rounded-full hover:bg-white/30 transition-all hover:scale-110 border border-white/30 shadow-lg flex items-center justify-center"
-          title={`个人设置 - ${currentUser.nickname || '未设置昵称'}`}
-        >
-          <div className="relative">
-            <Settings className="w-5 h-5" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full overflow-hidden border border-white/50">
-              <img
-                src={currentUser.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
-                alt="用户头像"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-        </button>
-      </div>
       
       {/* 主游戏区域 */}
       <div className="container mx-auto px-4 py-8 relative z-20">
@@ -709,8 +624,6 @@ export default function Home() {
             onStageChange={() => refreshRoom()}
             onWinnerDrawn={handleWinnerDrawn}
           />
-
-
           
           {/* 表情面板 */}
           <EmojiPanel
@@ -721,18 +634,8 @@ export default function Home() {
               refreshUsers()
             }}
           />
-
         </div>
       </div>
-      
-      {/* 用户设置弹窗 */}
-      {showSettings && currentUser && (
-        <UserSettings
-          user={currentUser}
-          onClose={() => setShowSettings(false)}
-          onUserUpdate={updateUserInfo}
-        />
-      )}
 
       {/* 获奖通知弹窗 */}
       <LotteryWinnerNotification

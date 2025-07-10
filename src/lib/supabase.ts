@@ -17,6 +17,7 @@ export interface Database {
           is_online: boolean
           current_emoji: string | null
           emoji_expires_at: string | null
+          password: string | null
         }
         Insert: {
           id?: string
@@ -30,6 +31,7 @@ export interface Database {
           is_online?: boolean
           current_emoji?: string | null
           emoji_expires_at?: string | null
+          password?: string | null
         }
         Update: {
           id?: string
@@ -43,6 +45,7 @@ export interface Database {
           is_online?: boolean
           current_emoji?: string | null
           emoji_expires_at?: string | null
+          password?: string | null
         }
       }
       rooms: {
