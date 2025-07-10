@@ -308,8 +308,8 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
                 
                 {/* 表情显示 */}
                 {user.current_emoji && user.emoji_expires_at && new Date(user.emoji_expires_at) > new Date() && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                    <span className={`animate-bounce ${nonHostUsers.length <= 6 ? 'text-2xl' : nonHostUsers.length <= 12 ? 'text-xl' : 'text-lg'}`}>
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-50">
+                    <span className={`animate-bounce ${nonHostUsers.length <= 6 ? 'text-5xl' : nonHostUsers.length <= 12 ? 'text-4xl' : 'text-3xl'}`}>
                       {user.current_emoji}
                     </span>
                   </div>

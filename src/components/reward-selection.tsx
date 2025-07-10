@@ -337,8 +337,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     />
                     {/* 表情显示 */}
                     {hosts[0].current_emoji && hosts[0].emoji_expires_at && new Date(hosts[0].emoji_expires_at) > new Date() && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                        <span className="text-xl animate-bounce">
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-50">
+                        <span className="text-5xl animate-bounce">
                           {hosts[0].current_emoji}
                         </span>
                       </div>
@@ -385,8 +385,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     />
                     {/* 表情显示 */}
                     {hosts[1].current_emoji && hosts[1].emoji_expires_at && new Date(hosts[1].emoji_expires_at) > new Date() && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                        <span className="text-xl animate-bounce">
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-50">
+                        <span className="text-5xl animate-bounce">
                           {hosts[1].current_emoji}
                         </span>
                       </div>
@@ -535,8 +535,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     />
                     {/* 表情显示 */}
                     {hosts[0].current_emoji && hosts[0].emoji_expires_at && new Date(hosts[0].emoji_expires_at) > new Date() && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                        <span className="text-xl animate-bounce">
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-50">
+                        <span className="text-5xl animate-bounce">
                           {hosts[0].current_emoji}
                         </span>
                       </div>
@@ -602,8 +602,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     />
                     {/* 表情显示 */}
                     {hosts[1].current_emoji && hosts[1].emoji_expires_at && new Date(hosts[1].emoji_expires_at) > new Date() && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                        <span className="text-xl animate-bounce">
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 flex items-center justify-center z-50">
+                        <span className="text-5xl animate-bounce">
                           {hosts[1].current_emoji}
                         </span>
                       </div>
