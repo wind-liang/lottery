@@ -616,6 +616,14 @@ export class GameLogic {
       
       if (deleteParticipantsError) throw deleteParticipantsError
       
+      // 清理绝地翻盘参与者表
+      const { error: deleteFinalLotteryParticipantsError } = await supabase
+        .from('final_lottery_participants')
+        .delete()
+        .eq('room_id', roomId)
+      
+      if (deleteFinalLotteryParticipantsError) throw deleteFinalLotteryParticipantsError
+      
       const { error: deleteEmojisError } = await supabase
         .from('emojis')
         .delete()

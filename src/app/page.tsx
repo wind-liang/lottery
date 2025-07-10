@@ -84,10 +84,23 @@ export default function Home() {
   const handleRoomChange = useCallback((updatedRoom: Room) => {
     console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name, '阶段:', updatedRoom?.stage)
     
-    // 只有在离开 reward_selection 阶段时才重置绝地翻盘弹窗标志
-    if (room && room.stage !== updatedRoom.stage && room.stage === 'reward_selection') {
-      console.log('🔄 [实时] 离开奖励选择阶段，重置绝地翻盘弹窗标志')
-      comebackModalShownRef.current = false // 重置 ref
+    // 重置绝地翻盘弹窗标志的条件：
+    // 1. 离开 reward_selection 阶段
+    // 2. 游戏被重置（回到 waiting 阶段）
+    if (room && room.stage !== updatedRoom.stage) {
+      if (room.stage === 'reward_selection' || updatedRoom.stage === 'waiting') {
+        console.log('🔄 [实时] 检测到阶段变更，重置绝地翻盘弹窗标志')
+        console.log('🔄 [实时] 原阶段:', room.stage, '新阶段:', updatedRoom.stage)
+        comebackModalShownRef.current = false // 重置 ref
+        setShowComebackModal(false) // 同时关闭弹窗
+        setLastFivePlayers([]) // 清空最后五名玩家数据
+        
+        // 如果是游戏重置，也重置获奖通知弹窗
+        if (updatedRoom.stage === 'waiting') {
+          console.log('🔄 [实时] 游戏重置，清理获奖通知弹窗')
+          setLotteryWinner(null) // 清空获奖通知
+        }
+      }
     }
     
     setRoom(updatedRoom)
