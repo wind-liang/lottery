@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
 import { LotteryBox } from '@/components/lottery-box'
@@ -38,7 +38,9 @@ export default function Home() {
   } | null>(null)
   const [showComebackModal, setShowComebackModal] = useState(false)
   const [lastFivePlayers, setLastFivePlayers] = useState<User[]>([])
-  const [comebackModalShown, setComebackModalShown] = useState(false)
+  
+  // 使用 ref 来即时追踪弹窗显示状态，避免异步状态更新导致的多次触发
+  const comebackModalShownRef = useRef(false)
 
   // 初始化用户和房间
   useEffect(() => {
@@ -66,7 +68,7 @@ export default function Home() {
     // 只有在离开 reward_selection 阶段时才重置绝地翻盘弹窗标志
     if (room && room.stage !== updatedRoom.stage && room.stage === 'reward_selection') {
       console.log('🔄 [实时] 离开奖励选择阶段，重置绝地翻盘弹窗标志')
-      setComebackModalShown(false)
+      comebackModalShownRef.current = false // 重置 ref
     }
     
     setRoom(updatedRoom)
@@ -523,20 +525,29 @@ export default function Home() {
   // 绝地翻盘弹窗处理函数
   const handleComebackModalClose = () => {
     setShowComebackModal(false)
-    setComebackModalShown(true) // 标记弹窗已显示过，防止重新显示
+    comebackModalShownRef.current = true // 标记弹窗已显示过，防止重新显示
   }
 
   const handleComebackModalComplete = async () => {
     setShowComebackModal(false)
-    setComebackModalShown(true) // 标记弹窗已显示过
+    comebackModalShownRef.current = true // 标记弹窗已显示过
     // 倒计时结束后只关闭弹窗，等待主持人手动点击按钮进入绝地翻盘阶段
   }
 
   // 监听用户变化以检查是否所有人都选择完毕
   useEffect(() => {
-    if (room?.stage === 'reward_selection' && users.length > 0 && !comebackModalShown) {
+    // 只在奖励选择阶段且有用户且弹窗未显示过时才检查
+    if (room?.stage === 'reward_selection' && users.length > 0 && !comebackModalShownRef.current) {
+      console.log('🔍 [检查选择状态] 开始检查，弹窗是否已显示过:', comebackModalShownRef.current)
+      
       setTimeout(async () => {
         try {
+          // 再次检查标记，防止在延迟期间被其他调用标记
+          if (comebackModalShownRef.current) {
+            console.log('🔍 [检查选择状态] 弹窗已在其他地方显示，跳过')
+            return
+          }
+          
           // 获取所有有排序的玩家
           const { data: players, error } = await supabase
             .from('users')
@@ -558,10 +569,12 @@ export default function Home() {
           })))
           
           console.log('🔍 [检查选择状态] 是否全部选择完毕:', allSelected)
-          console.log('🔍 [检查选择状态] 弹窗是否已显示过:', comebackModalShown)
 
           if (allSelected && players && players.length > 0) {
             console.log('🎉 [绝地翻盘] 所有人选择完毕，准备显示绝地翻盘弹窗')
+            
+            // 只有在真正要显示弹窗时才标记
+            comebackModalShownRef.current = true
             
             // 获取最后5名玩家
             const lastFive = await GameLogic.getLastFivePlayers(room.id)
@@ -569,14 +582,13 @@ export default function Home() {
             
             setLastFivePlayers(lastFive)
             setShowComebackModal(true)
-            setComebackModalShown(true) // 标记弹窗已显示
           }
         } catch (error) {
           console.error('检查选择状态失败:', error)
         }
       }, 500) // 延迟检查，确保状态已更新
     }
-  }, [users, room?.stage, room?.id, comebackModalShown])
+  }, [room?.stage, room?.id, users.filter(u => u.role === 'player' && u.order_number != null).map(u => u.selected_reward).join(',')]) // 只监听玩家的奖励选择状态变化
 
   if (loading) {
     return <LoadingSpinner />
