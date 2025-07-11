@@ -318,9 +318,43 @@ export default function Home() {
 
   const joinRoom = async (userId: string, roomId: string): Promise<User | null> => {
     try {
+      // 首先检查用户是否已经有 display_order
+      const { data: currentUser, error: getUserError } = await supabase
+        .from('users')
+        .select('display_order')
+        .eq('id', userId)
+        .single()
+
+      if (getUserError) throw getUserError
+
+      let displayOrder = currentUser?.display_order
+
+      // 如果用户还没有 display_order，为其分配一个
+      if (displayOrder === null || displayOrder === undefined) {
+        // 查询当前房间内的最大 display_order
+        const { data: maxOrderData, error: maxOrderError } = await supabase
+          .from('users')
+          .select('display_order')
+          .eq('room_id', roomId)
+          .not('display_order', 'is', null)
+          .order('display_order', { ascending: false })
+          .limit(1)
+
+        if (maxOrderError) throw maxOrderError
+
+        // 设置新的 display_order
+        displayOrder = (maxOrderData?.[0]?.display_order || 0) + 1
+      }
+
+      // 更新用户的房间ID和 display_order
+      const updateData: { room_id: string; display_order?: number } = { room_id: roomId }
+      if (currentUser?.display_order === null || currentUser?.display_order === undefined) {
+        updateData.display_order = displayOrder
+      }
+
       const { data: updatedUser, error } = await supabase
         .from('users')
-        .update({ room_id: roomId })
+        .update(updateData)
         .eq('id', userId)
         .select()
         .single()

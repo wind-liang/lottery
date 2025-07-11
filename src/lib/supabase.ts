@@ -18,6 +18,7 @@ export interface Database {
           current_emoji: string | null
           emoji_expires_at: string | null
           password: string | null
+          display_order: number | null
         }
         Insert: {
           id?: string
@@ -32,6 +33,7 @@ export interface Database {
           current_emoji?: string | null
           emoji_expires_at?: string | null
           password?: string | null
+          display_order?: number | null
         }
         Update: {
           id?: string
@@ -46,6 +48,7 @@ export interface Database {
           current_emoji?: string | null
           emoji_expires_at?: string | null
           password?: string | null
+          display_order?: number | null
         }
       }
       rooms: {

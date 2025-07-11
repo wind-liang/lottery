@@ -39,7 +39,7 @@ export function useRealtime({
         .from('users')
         .select('*')
         .eq('room_id', roomId)
-        .order('joined_at', { ascending: true }) // 按加入时间排序，保持固定顺序
+        .order('display_order', { ascending: true }) // 按显示顺序排序，保持固定顺序
 
       if (error) {
         console.error('❌ [Realtime] 获取用户列表失败:', error)
