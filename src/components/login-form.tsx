@@ -83,16 +83,16 @@ export function LoginForm({ onLoginSuccess, onError }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center px-4">
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md border border-white/20 shadow-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 to-rose-200 flex items-center justify-center px-4">
+      <div className="bg-white/60 backdrop-blur-lg rounded-2xl p-8 w-full max-w-md border border-gray-300/50 shadow-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">婚礼抽奖</h1>
-          <p className="text-white/80">请输入您的专属密码</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">婚礼抽奖</h1>
+          <p className="text-gray-600">请输入您的专属密码</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               登录密码
             </label>
             <input
@@ -100,7 +100,7 @@ export function LoginForm({ onLoginSuccess, onError }: LoginFormProps) {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent"
+              className="w-full px-4 py-3 rounded-lg bg-white/80 border border-gray-300 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent"
               placeholder="请输入您的密码"
               disabled={loading}
               autoComplete="off"
@@ -110,7 +110,7 @@ export function LoginForm({ onLoginSuccess, onError }: LoginFormProps) {
           <button
             type="submit"
             disabled={loading || !password.trim()}
-            className="w-full bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg border border-white/30 transition-all duration-200 flex items-center justify-center space-x-2"
+            className="w-full bg-pink-500 hover:bg-pink-600 disabled:bg-pink-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg border border-pink-500 transition-all duration-200 flex items-center justify-center space-x-2"
           >
             {loading ? (
               <>

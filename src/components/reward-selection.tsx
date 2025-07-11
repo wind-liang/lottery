@@ -352,7 +352,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                     </div>
                   </div>
-                  <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                  <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                     {hosts[0].nickname}
                   </p>
                 </motion.div>
@@ -361,7 +361,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
 
             {/* 中间标题区域 */}
             <div className="flex-shrink-0">
-              <h3 className="text-xl font-bold text-white text-center">奖励选择</h3>
+              <h3 className="text-xl font-bold text-gray-800 text-center">奖励选择</h3>
             </div>
 
             {/* 右侧主持人头像 */}
@@ -400,7 +400,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                     </div>
                   </div>
-                  <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                  <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                     {hosts[1].nickname}
                   </p>
                 </motion.div>
@@ -410,7 +410,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
 
           {/* 当前选择者信息 - 只在选择流程开始后显示 */}
           {currentSelector && (
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+            <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-4 border border-gray-300/50">
               <div className="flex items-center justify-between">
                 {/* 左侧显示当前选择者头像 - 根据PRD要求 */}
                 <div className="flex items-center space-x-3">
@@ -422,17 +422,17 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     />
                   </div>
                   <div>
-                    <p className="text-white font-medium">
+                    <p className="text-gray-800 font-medium">
                       {isMyTurn ? '轮到你选择了' : `${currentSelector.nickname} 正在选择`}
                     </p>
-                    <p className="text-white/70 text-sm">
+                    <p className="text-gray-600 text-sm">
                       第 {currentSelector.order_number} 名
                     </p>
                   </div>
                 </div>
                 
                 {isMyTurn && (
-                  <div className="flex items-center space-x-2 text-white">
+                  <div className="flex items-center space-x-2 text-gray-800">
                     <Clock className="w-4 h-4" />
                     <span className="font-bold text-lg">
                       {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
@@ -452,8 +452,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={`
-                    bg-white/10 backdrop-blur-sm rounded-2xl p-4 border-2 transition-all duration-300 flex-shrink-0 w-48
-                    ${selectedReward === reward.id ? 'border-blue-400 bg-blue-400/20' : 'border-white/20'}
+                    bg-white/30 backdrop-blur-sm rounded-2xl p-4 border-2 transition-all duration-300 flex-shrink-0 w-48
+                    ${selectedReward === reward.id ? 'border-blue-400 bg-blue-400/20' : 'border-gray-300/50'}
                     ${reward.selected_by ? 'opacity-50' : ''}
                     ${canSelectReward && !reward.selected_by ? 'cursor-pointer hover:border-blue-300' : ''}
                   `}
@@ -471,8 +471,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                     
                     {/* 奖励信息 */}
                     <div className="text-center">
-                      <h4 className="text-white font-medium text-sm">{reward.name}</h4>
-                      <p className="text-white/70 text-xs mt-1">{reward.description}</p>
+                      <h4 className="text-gray-800 font-medium text-sm">{reward.name}</h4>
+                      <p className="text-gray-600 text-xs mt-1">{reward.description}</p>
                     </div>
                     
                     {/* 选择状态 */}
@@ -492,7 +492,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                           {/* 单选框 - 仅玩家可见 */}
                           {currentUser.role === 'player' && (
                             <div className={`
-                              w-6 h-6 rounded-full border-2 border-white/50 flex items-center justify-center
+                              w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center
                               ${selectedReward === reward.id ? 'bg-blue-400 border-blue-400' : ''}
                             `}>
                               {selectedReward === reward.id && (
@@ -550,7 +550,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                     </div>
                   </div>
-                  <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                  <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                     {hosts[0].nickname}
                   </p>
                 </motion.div>
@@ -617,7 +617,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
                       <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                     </div>
                   </div>
-                  <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+                  <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                     {hosts[1].nickname}
                   </p>
                 </motion.div>

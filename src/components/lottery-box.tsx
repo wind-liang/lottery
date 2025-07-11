@@ -131,7 +131,7 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
                   <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 </div>
               </div>
-              <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+              <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                 {hosts[0].nickname}
               </p>
             </motion.div>
@@ -207,7 +207,7 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
                   <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                 </div>
               </div>
-              <p className="text-xs text-center mt-1 text-white truncate max-w-20">
+              <p className="text-xs text-center mt-1 text-gray-800 truncate max-w-20">
                 {hosts[1].nickname}
               </p>
             </motion.div>

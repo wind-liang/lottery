@@ -311,24 +311,24 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
   if (!isHost) {
     return (
       <div className="text-center">
-        <p className="text-white/70 text-sm">等待主持人操作...</p>
+        <p className="text-gray-600 text-sm">等待主持人操作...</p>
       </div>
     )
   }
 
   return (
     <div className="mb-8">
-      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-        <h3 className="text-white font-medium mb-4 text-center">游戏控制</h3>
+      <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-4 border border-gray-300/50">
+        <h3 className="text-gray-800 font-medium mb-4 text-center">游戏控制</h3>
         
         <div className="space-y-3">
           {/* 等待阶段 */}
           {room.stage === 'waiting' && (
             <div className="space-y-2">
-              <p className="text-white/80 text-sm text-center">
+              <p className="text-gray-700 text-sm text-center">
                 当前玩家: {getPlayerCount()} 人
               </p>
-              <p className="text-white/80 text-sm text-center">
+              <p className="text-gray-700 text-sm text-center">
                 观众人数: {getAudienceCount()} 人
               </p>
               <button

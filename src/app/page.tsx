@@ -538,13 +538,13 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-        <div className="text-white text-center">
+      <div className="min-h-screen bg-gradient-to-br from-pink-100 to-rose-200 flex items-center justify-center">
+        <div className="text-gray-800 text-center">
           <h1 className="text-2xl font-bold mb-4">加载失败</h1>
           <p className="mb-4">{error}</p>
           <button
             onClick={() => initializeApp()}
-            className="bg-white text-purple-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+            className="bg-white text-pink-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors"
           >
             重试
           </button>
@@ -558,7 +558,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 to-pink-600">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 to-rose-200">
       {/* 实时通知 */}
       <RealtimeNotifications />
       

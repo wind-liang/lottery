@@ -286,8 +286,8 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
 
   return (
     <div className="mb-8">
-      <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-        <h3 className="text-white font-medium mb-4 text-center">
+      <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-4 border border-gray-300/50">
+        <h3 className="text-gray-800 font-medium mb-4 text-center">
           房间成员 ({users.length}) - 在线: {users.filter(u => u.is_online).length}
         </h3>
         
@@ -353,7 +353,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
                 )}
               </div>
               
-              <p className={`text-xs text-center mt-2 mb-1 truncate max-w-20 ${user.is_online ? 'text-white' : 'text-gray-400'}`}>
+              <p className={`text-xs text-center mt-2 mb-1 truncate max-w-20 ${user.is_online ? 'text-gray-800' : 'text-gray-400'}`}>
                 {user.nickname}
                 {!user.is_online && (
                   <span className="block text-xs text-red-400 font-medium">离线</span>
