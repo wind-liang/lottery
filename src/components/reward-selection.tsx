@@ -31,7 +31,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
   const currentSelector = room.current_selector ? users.find(u => u.id === room.current_selector) : null
   const selectionInProgress = !!room.current_selector
 
-  // 获取主持人列表
+  // 获取主持人列表（保持固定顺序）
   const hosts = users
     .filter(user => user.role === 'host' && user.is_online)
     .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())

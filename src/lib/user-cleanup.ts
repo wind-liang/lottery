@@ -64,8 +64,7 @@ export async function markInactiveUsersOffline() {
     const { error: updateError } = await supabase
       .from('users')
       .update({ 
-        is_online: false,
-        updated_at: new Date().toISOString()
+        is_online: false
       })
       .eq('is_online', true)
       .lt('updated_at', twoMinutesAgo.toISOString())

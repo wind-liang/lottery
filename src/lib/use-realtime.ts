@@ -39,8 +39,7 @@ export function useRealtime({
         .from('users')
         .select('*')
         .eq('room_id', roomId)
-        .order('is_online', { ascending: false }) // 在线用户排在前面
-        .order('created_at', { ascending: true })
+        .order('joined_at', { ascending: true }) // 按加入时间排序，保持固定顺序
 
       if (error) {
         console.error('❌ [Realtime] 获取用户列表失败:', error)

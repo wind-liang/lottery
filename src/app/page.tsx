@@ -258,8 +258,7 @@ export default function Home() {
         const { data: updatedUser, error: updateError } = await supabase
           .from('users')
           .update({ 
-            is_online: true,
-            updated_at: new Date().toISOString()
+            is_online: true
           })
           .eq('id', existingUser.id)
           .select()
@@ -640,8 +639,9 @@ export default function Home() {
         currentUser={currentUser}
         roomId={room.id}
         onEmojiSent={() => {
-          console.log('🎯 收到表情发送回调，刷新用户数据')
-          refreshUsers()
+          console.log('🎯 收到表情发送回调，实时监听会自动更新用户数据')
+          // 移除手动refreshUsers调用，避免重复刷新导致的顺序问题
+          // refreshUsers()
         }}
       />
 

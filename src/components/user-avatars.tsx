@@ -278,7 +278,10 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
   }
 
   // 过滤掉主持人，因为主持人头像已经在抽奖箱两侧显示
-  const nonHostUsers = users.filter(user => user.role !== 'host')
+  // 按加入时间排序，保持固定顺序
+  const nonHostUsers = users
+    .filter(user => user.role !== 'host')
+    .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
   const avatarSize = getAvatarSize(nonHostUsers.length)
 
   return (

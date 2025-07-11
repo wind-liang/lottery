@@ -21,8 +21,7 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
       const { error } = await supabase
         .from('users')
         .update({ 
-          is_online: isOnline,
-          updated_at: new Date().toISOString()
+          is_online: isOnline
         })
         .eq('id', userId)
 
@@ -51,8 +50,7 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
       const { error } = await supabase
         .from('users')
         .update({ 
-          is_online: true,
-          updated_at: new Date().toISOString()
+          is_online: true
         })
         .eq('id', userId)
 

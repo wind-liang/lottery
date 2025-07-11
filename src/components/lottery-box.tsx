@@ -21,7 +21,7 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
   const [participants, setParticipants] = useState<User[]>([])
   const [isShaking] = useState(false)
 
-  // 获取主持人列表（最多两个，按加入时间排序）
+  // 获取主持人列表（最多两个，按加入时间排序，保持固定顺序）
   const hosts = users
     .filter(user => user.role === 'host' && user.is_online)
     .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
