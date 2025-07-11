@@ -28,7 +28,7 @@ export function LotteryWinnerNotification({
       
       // 根据是否是绝地翻盘设置不同的显示时间
       const isFinalLottery = winner.orderNumber === 0 // 绝地翻盘标识
-      const displayTime = isFinalLottery ? 10000 : 3000 // 绝地翻盘10秒，普通抽奖3秒
+      const displayTime = isFinalLottery ? 10000 : 8000 // 绝地翻盘10秒，普通抽奖8秒
       
       const timer = setTimeout(() => {
         setIsVisible(false)
