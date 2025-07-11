@@ -122,12 +122,6 @@ export function LoginForm({ onLoginSuccess, onError }: LoginFormProps) {
             )}
           </button>
         </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-white/60 text-sm">
-            请使用主办方提供的专属密码登录
-          </p>
-        </div>
       </div>
     </div>
   )
