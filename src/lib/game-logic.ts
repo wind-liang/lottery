@@ -517,83 +517,138 @@ export class GameLogic {
 
   // 发送表情
   static async sendEmoji(userId: string, roomId: string, emoji: string): Promise<boolean> {
-    try {
-      const expiresAt = new Date()
-      expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
-      
-      // 先检查用户是否存在
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id, nickname, current_emoji, emoji_expires_at')
-        .eq('id', userId)
-        .single()
-      
-      if (checkError) {
-        console.error('🎭 查询用户失败:', checkError)
-        throw checkError
-      }
-      
-      console.log('🎭 [发送表情] 用户检查:', existingUser)
-      
-      const { data, error } = await supabase
-        .from('users')
-        .update({
-          current_emoji: emoji,
-          emoji_expires_at: expiresAt.toISOString()
-        })
-        .eq('id', userId)
-        .select('id, nickname, current_emoji, emoji_expires_at')
-      
-      if (error) {
-        console.error('🎭 数据库更新失败:', error)
-        throw error
-      }
-      
-      // 验证更新结果
-      if (!data || data.length === 0) {
-        console.error('🎭 更新失败：没有找到匹配的用户记录')
-        throw new Error('更新失败：没有找到匹配的用户记录')
-      }
-      
-      const updatedUser = data[0]
-      if (updatedUser.current_emoji !== emoji) {
-        console.error('🎭 更新失败：表情字段更新不正确', {
-          expected: emoji,
-          actual: updatedUser.current_emoji
-        })
-        throw new Error('表情字段更新不正确')
-      }
-      
-      // 再次查询数据库验证是否真的更新了
-      console.log('🔍 重新查询数据库验证更新结果...')
-      const { data: verifyUser, error: verifyError } = await supabase
-        .from('users')
-        .select('id, nickname, current_emoji, emoji_expires_at')
-        .eq('id', userId)
-        .single()
-      
-      if (verifyError) {
-        console.error('🎭 验证查询失败:', verifyError)
-      } else {
-        console.log('🎭 数据库实际状态:', verifyUser)
+    const MAX_RETRIES = 3
+    const RETRY_DELAY = 1000 // 1秒
+    
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`🎭 [发送表情] 尝试第 ${attempt} 次发送:`, { userId, roomId, emoji })
         
-        if (verifyUser.current_emoji !== emoji) {
-          console.error('🚨 严重错误：数据库实际没有更新！', {
-            expected: emoji,
-            actual: verifyUser.current_emoji,
-            userInDb: verifyUser
-          })
-          throw new Error(`数据库实际没有更新！期望: ${emoji}, 实际: ${verifyUser.current_emoji}`)
-        } else {
-          console.log('✅ 数据库实际更新确认成功!')
+        // 检查网络连接状态
+        if (typeof window !== 'undefined' && 'navigator' in window && !navigator.onLine) {
+          throw new Error('网络连接已断开，请检查网络后重试')
         }
+        
+        const expiresAt = new Date()
+        expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
+        
+        // 先检查用户是否存在
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('id, nickname, current_emoji, emoji_expires_at')
+          .eq('id', userId)
+          .single()
+        
+        if (checkError) {
+          console.error('🎭 查询用户失败:', checkError)
+          if (checkError.code === 'PGRST116') { // 用户不存在
+            throw new Error('用户不存在，请重新加入房间')
+          }
+          throw new Error('查询用户信息失败，请稍后重试')
+        }
+        
+        console.log('🎭 [发送表情] 用户检查通过:', existingUser)
+        
+        // 执行更新操作
+        const { data, error } = await supabase
+          .from('users')
+          .update({
+            current_emoji: emoji,
+            emoji_expires_at: expiresAt.toISOString()
+          })
+          .eq('id', userId)
+          .select('id, nickname, current_emoji, emoji_expires_at')
+        
+        if (error) {
+          console.error('🎭 数据库更新失败:', error)
+          // 数据库连接错误，可以重试
+          if (error.code === 'PGRST301' || error.message.includes('connection')) {
+            if (attempt < MAX_RETRIES) {
+              console.log(`🔄 数据库连接错误，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
+              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+              continue
+            }
+            throw new Error('数据库连接不稳定，请稍后重试')
+          }
+          throw new Error('数据库更新失败，请稍后重试')
+        }
+        
+        // 验证更新结果
+        if (!data || data.length === 0) {
+          console.error('🎭 更新失败：没有找到匹配的用户记录')
+          throw new Error('更新失败，用户可能已离开房间')
+        }
+        
+        const updatedUser = data[0]
+        if (updatedUser.current_emoji !== emoji) {
+          console.error('🎭 更新失败：表情字段更新不正确', {
+            expected: emoji,
+            actual: updatedUser.current_emoji
+          })
+          // 这种情况可能是并发问题，可以重试
+          if (attempt < MAX_RETRIES) {
+            console.log(`🔄 表情更新不正确，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+            continue
+          }
+          throw new Error('表情更新失败，请稍后重试')
+        }
+        
+        // 再次查询数据库验证是否真的更新了
+        console.log('🔍 重新查询数据库验证更新结果...')
+        const { data: verifyUser, error: verifyError } = await supabase
+          .from('users')
+          .select('id, nickname, current_emoji, emoji_expires_at')
+          .eq('id', userId)
+          .single()
+        
+        if (verifyError) {
+          console.error('🎭 验证查询失败:', verifyError)
+          // 验证失败但更新可能成功了，不强制重试
+          console.log('⚠️ 验证失败但更新可能成功，继续执行')
+        } else {
+          console.log('🎭 数据库实际状态:', verifyUser)
+          
+          if (verifyUser.current_emoji !== emoji) {
+            console.error('🚨 严重错误：数据库实际没有更新！', {
+              expected: emoji,
+              actual: verifyUser.current_emoji,
+              userInDb: verifyUser
+            })
+            // 这种情况可能是数据库延迟，可以重试
+            if (attempt < MAX_RETRIES) {
+              console.log(`🔄 数据库实际没有更新，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
+              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+              continue
+            }
+            throw new Error('数据库同步失败，请稍后重试')
+          } else {
+            console.log('✅ 数据库实际更新确认成功!')
+          }
+        }
+        
+        console.log(`🎉 [发送表情] 第 ${attempt} 次尝试成功`)
+        return true
+        
+      } catch (error) {
+        console.error(`🎭 [发送表情] 第 ${attempt} 次尝试失败:`, error)
+        
+        // 如果是最后一次尝试，抛出错误
+        if (attempt === MAX_RETRIES) {
+          if (error instanceof Error) {
+            throw error
+          } else {
+            throw new Error('发送表情失败，请稍后重试')
+          }
+        }
+        
+        // 等待后重试
+        console.log(`🔄 ${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
       }
-      
-      return true
-    } catch (error) {
-      console.error('发送表情失败:', error)
-      return false
     }
+    
+    return false
   }
 
   // 清理过期表情

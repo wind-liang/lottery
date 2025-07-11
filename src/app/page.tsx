@@ -632,18 +632,18 @@ export default function Home() {
             onStageChange={() => refreshRoom()}
             onWinnerDrawn={handleWinnerDrawn}
           />
-          
-          {/* 表情面板 */}
-          <EmojiPanel
-            currentUser={currentUser}
-            roomId={room.id}
-            onEmojiSent={() => {
-              console.log('🎯 收到表情发送回调，刷新用户数据')
-              refreshUsers()
-            }}
-          />
         </div>
       </div>
+
+      {/* 表情面板 - 移到页面根部以避免层叠上下文问题 */}
+      <EmojiPanel
+        currentUser={currentUser}
+        roomId={room.id}
+        onEmojiSent={() => {
+          console.log('🎯 收到表情发送回调，刷新用户数据')
+          refreshUsers()
+        }}
+      />
 
       {/* 获奖通知弹窗 */}
       <LotteryWinnerNotification
