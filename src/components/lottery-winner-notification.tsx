@@ -93,6 +93,19 @@ export function LotteryWinnerNotification({
     }
   }
 
+  const getRedPacketReward = () => {
+    if (!winner || isFinalLottery) return null
+    
+    const rewardMap: { [key: number]: number } = {
+      1: 88,
+      2: 66,
+      3: 50,
+      4: 30
+    }
+    
+    return rewardMap[winner.orderNumber] || null
+  }
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -199,11 +212,33 @@ export function LotteryWinnerNotification({
                 {message}
               </motion.p>
 
+              {/* 红包奖励信息 */}
+              {getRedPacketReward() && (
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="mt-3 p-3 bg-red-500/30 border-2 border-red-400/50 rounded-xl shadow-lg"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.2) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-2xl">🧧</span>
+                    <span className="text-lg font-bold text-white drop-shadow-lg">
+                      额外奖励 {getRedPacketReward()} 元红包
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+
               {/* 动态文字效果 */}
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.4, type: "spring", stiffness: 300 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 300 }}
                 className="mt-4 text-white/80 text-sm"
               >
                 {isFinalLottery 
