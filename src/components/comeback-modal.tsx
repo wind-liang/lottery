@@ -99,6 +99,8 @@ export function ComebackModal({
     return Math.round((playerWeight / totalWeight) * 100)
   }
 
+
+
   console.log('🎯 [ComebackModal] 渲染状态:', {
     isVisible,
     lastFivePlayersCount: lastFivePlayers.length,
@@ -265,6 +267,17 @@ export function ComebackModal({
                   <p>倒数第二名将获得 4 倍中奖机会</p>
                   <p>以此类推，排名越后机会越多</p>
                   <p>翻盘奖将从所有机会中随机抽取</p>
+                </div>
+                
+                {/* 红包奖励信息 */}
+                <div className="mt-4 p-3 bg-red-500/20 border border-red-400/30 rounded-xl">
+                  <div className="flex items-center justify-center mb-2">
+                    <span className="text-lg">🧧</span>
+                    <h5 className="text-white font-semibold ml-2">红包奖励</h5>
+                  </div>
+                  <div className="text-white/90 text-sm">
+                    <p className="font-medium text-yellow-300 text-center">绝地翻盘获胜者：300元红包</p>
+                  </div>
                 </div>
               </motion.div>
             </div>

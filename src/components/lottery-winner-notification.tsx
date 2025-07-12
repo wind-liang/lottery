@@ -94,7 +94,10 @@ export function LotteryWinnerNotification({
   }
 
   const getRedPacketReward = () => {
-    if (!winner || isFinalLottery) return null
+    if (!winner) return null
+    
+    // 绝地翻盘获胜者的奖励
+    if (isFinalLottery) return 300
     
     const rewardMap: { [key: number]: number } = {
       1: 88,

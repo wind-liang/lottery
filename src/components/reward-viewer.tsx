@@ -117,6 +117,22 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     return reward.image_url || `https://api.dicebear.com/7.x/shapes/svg?seed=${reward.id}`
   }
 
+  // 获取红包奖励金额 - 复用与获奖通知弹窗一致的逻辑
+  const getRedPacketReward = (userReward: UserRewardSelection) => {
+    // 绝地翻盘获胜者的奖励
+    if (userReward.isFinalLotteryWinner) return 300
+    
+    // 根据排名给予红包奖励
+    const rewardMap: { [key: number]: number } = {
+      1: 88,
+      2: 66,
+      3: 50,
+      4: 30
+    }
+    
+    return rewardMap[userReward.user.order_number || 0] || null
+  }
+
   // 统计已选择奖励的用户数量和绝地翻盘获胜者
   const selectedCount = users.filter(user => user.role === 'player' && user.selected_reward).length
   const totalPlayers = users.filter(user => user.role === 'player').length
@@ -302,6 +318,18 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
                                 : 'text-blue-600 bg-blue-100'
                             }`}>
                               {userReward.isFinalLotteryWinner ? '翻盘获胜' : '已选择'}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 第三行：红包奖励信息 */}
+                        {getRedPacketReward(userReward) && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-center justify-center space-x-2">
+                              <span className="text-lg">🧧</span>
+                              <span className="text-sm font-bold text-red-700">
+                                额外红包奖励 {getRedPacketReward(userReward)} 元
+                              </span>
                             </div>
                           </div>
                         )}
