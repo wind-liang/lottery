@@ -16,9 +16,18 @@ interface LotteryBoxProps {
   users: User[]
 }
 
+// 绝地翻盘参与者的扩展信息
+interface FinalLotteryParticipant {
+  user: User
+  orderNumber: number
+  weight: number
+  winningProbability: number
+}
+
 export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [participants, setParticipants] = useState<User[]>([])
+  const [finalParticipants, setFinalParticipants] = useState<FinalLotteryParticipant[]>([])
   const [isShaking] = useState(false)
 
   // 获取主持人列表（最多两个，按加入时间排序，保持固定顺序）
@@ -30,23 +39,58 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
   // 获取抽奖参与者
   useEffect(() => {
     fetchParticipants()
-  }, [roomId, users])
+  }, [roomId, users, stage])
 
   const fetchParticipants = async () => {
     try {
-      const { data, error } = await supabase
-        .from('lottery_participants')
-        .select(`
-          *,
-          users (*)
-        `)
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true })
+      if (stage === 'final_lottery') {
+        // 绝地翻盘阶段，从 final_lottery_participants 表获取参与者
+        const { data, error } = await supabase
+          .from('final_lottery_participants')
+          .select(`
+            *,
+            users (*)
+          `)
+          .eq('room_id', roomId)
+          .order('weight', { ascending: false }) // 按权重降序排列，权重高的在前
 
-      if (error) throw error
-      
-      const participantUsers = data?.map(p => p.users as User).filter(Boolean) || []
-      setParticipants(participantUsers)
+        if (error) throw error
+        
+        if (data) {
+          // 计算总权重
+          const totalWeight = data.reduce((sum, p) => sum + p.weight, 0)
+          
+          // 构建绝地翻盘参与者信息
+          const finalParticipantData: FinalLotteryParticipant[] = data.map(p => ({
+            user: p.users as User,
+            orderNumber: (p.users as User).order_number || 0,
+            weight: p.weight,
+            winningProbability: Math.round((p.weight / totalWeight) * 100)
+          }))
+          
+          setFinalParticipants(finalParticipantData)
+          setParticipants(finalParticipantData.map(fp => fp.user))
+        } else {
+          setFinalParticipants([])
+          setParticipants([])
+        }
+      } else {
+        // 其他阶段，从 lottery_participants 表获取参与者
+        const { data, error } = await supabase
+          .from('lottery_participants')
+          .select(`
+            *,
+            users (*)
+          `)
+          .eq('room_id', roomId)
+          .order('created_at', { ascending: true })
+
+        if (error) throw error
+        
+        const participantUsers = data?.map(p => p.users as User).filter(Boolean) || []
+        setParticipants(participantUsers)
+        setFinalParticipants([])
+      }
     } catch (error) {
       console.error('获取参与者失败:', error)
     }
@@ -241,7 +285,9 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">抽奖箱</h3>
+              <h3 className={`text-lg font-bold ${stage === 'final_lottery' ? 'text-red-600' : 'text-gray-800'}`}>
+                {stage === 'final_lottery' ? '绝地翻盘' : '抽奖箱'}
+              </h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -254,22 +300,53 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
               <p className="text-gray-500 text-center py-8">暂无参与者</p>
             ) : (
               <div className="space-y-3">
-                {participants.map((participant, index) => (
-                  <div
-                    key={participant.id}
-                    className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
-                  >
-                    <img
-                      src={participant.avatar_url || ''}
-                      alt={participant.nickname}
-                      className="w-8 h-8 rounded-full"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800">{participant.nickname}</p>
-                      <p className="text-sm text-gray-500">第 {index + 1} 个参与</p>
+                {stage === 'final_lottery' ? (
+                  // 绝地翻盘阶段显示名次和中奖概率
+                  finalParticipants.map((finalParticipant) => (
+                    <div
+                      key={finalParticipant.user.id}
+                      className="flex items-center space-x-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-200"
+                    >
+                      <div className="relative">
+                        <img
+                          src={finalParticipant.user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${finalParticipant.user.id}`}
+                          alt={finalParticipant.user.nickname}
+                          className="w-10 h-10 rounded-full"
+                        />
+                        {/* 排名标识 */}
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                          {finalParticipant.orderNumber}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{finalParticipant.user.nickname}</p>
+                        <p className="text-sm text-gray-600">第 {finalParticipant.orderNumber} 名</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-red-600">{finalParticipant.winningProbability}%</p>
+                        <p className="text-xs text-gray-500">中奖概率</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  // 普通阶段显示参与顺序
+                  participants.map((participant, index) => (
+                    <div
+                      key={participant.id}
+                      className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <img
+                        src={participant.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${participant.id}`}
+                        alt={participant.nickname}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-800">{participant.nickname}</p>
+                        <p className="text-sm text-gray-500">第 {index + 1} 个参与</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
