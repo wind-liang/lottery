@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, Gift, Crown, User, Users, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GameLogic } from '@/lib/game-logic'
@@ -26,6 +26,23 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
   const [isOpen, setIsOpen] = useState(false)
   const [userRewards, setUserRewards] = useState<UserRewardSelection[]>([])
   const [loading, setLoading] = useState(false)
+  const [totalParticipants, setTotalParticipants] = useState(0)
+
+  // 获取参与抽奖的人数
+  const fetchParticipantsCount = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('lottery_participants')
+        .select('id')
+        .eq('room_id', roomId)
+      
+      if (error) throw error
+      setTotalParticipants(data?.length || 0)
+    } catch (error) {
+      console.error('获取参与抽奖人数失败:', error)
+      setTotalParticipants(0)
+    }
+  }, [roomId])
 
   // 获取奖励数据
   const fetchRewards = async () => {
@@ -59,6 +76,9 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
           isFinalLotteryWinner: false
         }))
         .sort((a, b) => (a.user.order_number || 0) - (b.user.order_number || 0))
+      
+      // 获取参与抽奖的人数
+      await fetchParticipantsCount()
       
       // 添加绝地翻盘获胜者（如果存在）
       let allUserRewards = [...normalUserRewards]
@@ -99,6 +119,11 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     setIsOpen(!isOpen)
   }
 
+  // 组件加载时获取参与抽奖人数
+  useEffect(() => {
+    fetchParticipantsCount()
+  }, [fetchParticipantsCount])
+
   const getRoleIcon = (role: User['role']) => {
     switch (role) {
       case 'host':
@@ -135,7 +160,6 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
 
   // 统计已选择奖励的用户数量和绝地翻盘获胜者
   const selectedCount = users.filter(user => user.role === 'player' && user.selected_reward).length
-  const totalPlayers = users.filter(user => user.role === 'player').length
   const hasFinalLotteryWinner = userRewards.some(ur => ur.isFinalLotteryWinner)
   const displayCount = selectedCount + (hasFinalLotteryWinner ? 1 : 0)
 
@@ -150,7 +174,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
         >
           <Gift className="w-5 h-5 group-hover:scale-110 transition-transform" />
           {/* 选择进度指示器 */}
-          {(totalPlayers > 0 || hasFinalLotteryWinner) && (
+          {(totalParticipants > 0 || hasFinalLotteryWinner) && (
             <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg animate-pulse">
               {displayCount}
             </div>
@@ -195,17 +219,17 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">选择进度</span>
                   <span className="text-sm font-bold text-blue-600">
-                    {selectedCount} / {totalPlayers} 人已选择{hasFinalLotteryWinner ? ' + 1 绝地翻盘' : ''}
+                    {selectedCount} / {totalParticipants} 人已选择{hasFinalLotteryWinner ? ' + 1 绝地翻盘' : ''}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500 shadow-sm"
-                    style={{ width: totalPlayers > 0 ? `${(selectedCount / totalPlayers) * 100}%` : '0%' }}
+                    style={{ width: totalParticipants > 0 ? `${(selectedCount / totalParticipants) * 100}%` : '0%' }}
                   />
                 </div>
                 <div className="mt-2 text-xs text-gray-500 text-center">
-                  完成度: {totalPlayers > 0 ? Math.round((selectedCount / totalPlayers) * 100) : 0}%
+                  完成度: {totalParticipants > 0 ? Math.round((selectedCount / totalParticipants) * 100) : 0}%
                   {hasFinalLotteryWinner && ' (+ 绝地翻盘)'}
                 </div>
               </div>
