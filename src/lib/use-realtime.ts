@@ -164,16 +164,31 @@ export function useRealtime({
   const usersFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const roomFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const rewardsFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastFetchTimeRef = useRef<number>(0) // 记录最后一次查询时间
 
-  // 防抖函数 - 增加防抖时间减少频繁查询
-  const debouncedFetchUsers = useCallback(() => {
+  // 合并的防抖函数 - 减少重复查询
+  const debouncedFetchAll = useCallback(() => {
+    const now = Date.now()
+    
+    // 如果距离上次查询不足 2 秒，则跳过
+    if (now - lastFetchTimeRef.current < 2000) {
+      return
+    }
+    
     if (usersFetchTimeoutRef.current) {
       clearTimeout(usersFetchTimeoutRef.current)
     }
+    
     usersFetchTimeoutRef.current = setTimeout(() => {
+      lastFetchTimeRef.current = Date.now()
       fetchRoomUsers()
-    }, 1000) // 增加到1秒防抖，减少频繁查询
+    }, 2500) // 增加到2.5秒防抖，显著减少查询频率
   }, [fetchRoomUsers])
+
+  // 防抖函数 - 进一步增加防抖时间
+  const debouncedFetchUsers = useCallback(() => {
+    debouncedFetchAll()
+  }, [debouncedFetchAll])
 
   const debouncedFetchRoom = useCallback(() => {
     if (roomFetchTimeoutRef.current) {
@@ -181,7 +196,7 @@ export function useRealtime({
     }
     roomFetchTimeoutRef.current = setTimeout(() => {
       fetchRoom()
-    }, 1000) // 增加到1秒防抖，减少频繁查询
+    }, 2000) // 增加到2秒防抖，减少频繁查询
   }, [fetchRoom])
 
   const debouncedFetchRewards = useCallback(() => {
@@ -190,7 +205,7 @@ export function useRealtime({
     }
     rewardsFetchTimeoutRef.current = setTimeout(() => {
       fetchRewards()
-    }, 500) // 奖励数据变化需要更快响应
+    }, 1500) // 增加到1.5秒防抖，奖励数据变化相对较少
   }, [fetchRewards])
 
   // 设置实时订阅
@@ -203,7 +218,7 @@ export function useRealtime({
     })
     channelsRef.current = []
 
-    // 用户表订阅
+    // 用户表订阅 - 合并处理多种事件
     const userChannel = supabase
       .channel(`users-${roomId}`)
       .on(
@@ -214,14 +229,15 @@ export function useRealtime({
           table: 'users',
           filter: `room_id=eq.${roomId}`,
         },
-        () => {
-          // 使用防抖延迟请求
+        (payload) => {
+          console.log('👥 [Realtime] 用户数据变化，事件类型:', payload.eventType)
+          // 使用统一的防抖函数，减少重复查询
           debouncedFetchUsers()
         }
       )
       .subscribe()
 
-    // 房间表订阅
+    // 房间表订阅 - 减少查询频率
     const roomChannel = supabase
       .channel(`rooms-${roomId}`)
       .on(
@@ -232,13 +248,14 @@ export function useRealtime({
           table: 'rooms',
           filter: `id=eq.${roomId}`,
         },
-        () => {
+        (payload) => {
+          console.log('🏠 [Realtime] 房间数据变化，事件类型:', payload.eventType)
           debouncedFetchRoom()
         }
       )
       .subscribe()
 
-    // 奖励表订阅
+    // 奖励表订阅 - 降低查询频率
     const rewardsChannel = supabase
       .channel(`rewards-${roomId}`)
       .on(
@@ -249,14 +266,14 @@ export function useRealtime({
           table: 'rewards',
           filter: `room_id=eq.${roomId}`,
         },
-        () => {
-          console.log('🎁 [Realtime] 奖励数据变化，刷新奖励列表')
+        (payload) => {
+          console.log('🎁 [Realtime] 奖励数据变化，事件类型:', payload.eventType)
           debouncedFetchRewards()
         }
       )
       .subscribe()
 
-    // 表情表订阅
+    // 表情表订阅 - 优化处理逻辑
     const emojiChannel = supabase
       .channel(`emojis-${roomId}`)
       .on(
@@ -289,8 +306,10 @@ export function useRealtime({
             }
           }
           
-          // 移除对用户列表的刷新 - 表情插入不需要刷新用户列表
-          // 用户的 current_emoji 字段变化会通过用户表订阅自动处理
+          // 表情插入后延迟更新用户列表，避免频繁查询
+          setTimeout(() => {
+            debouncedFetchUsers()
+          }, 1000)
         }
       )
       .subscribe()

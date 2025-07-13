@@ -47,8 +47,8 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
 
     const now = Date.now()
     
-    // 避免过于频繁的心跳
-    if (now - lastHeartbeatRef.current < 10000) {
+    // 避免过于频繁的心跳 - 增加到30秒
+    if (now - lastHeartbeatRef.current < 30000) {
       return
     }
 
@@ -77,8 +77,8 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
     // 立即发送一次心跳
     sendHeartbeat()
     
-    // 设置定时心跳（每60秒）- 增加间隔减少数据库更新
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 60000)
+    // 设置定时心跳（每2分钟）- 大幅降低频率，减少数据库负载
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 120000)
   }, [sendHeartbeat])
 
   // 停止心跳检测
@@ -139,14 +139,14 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
       }
     }
 
-    // 限制活跃检测的频率 - 减少触发频率
+    // 限制活跃检测的频率 - 大幅降低触发频率
     let activityTimeout: NodeJS.Timeout | null = null
     const throttledActivity = () => {
       if (activityTimeout) return
       activityTimeout = setTimeout(() => {
         handleUserActivity()
         activityTimeout = null
-      }, 30000) // 30秒内最多触发一次，减少频率
+      }, 60000) // 60秒内最多触发一次，大幅减少频率
     }
 
     document.addEventListener('mousemove', throttledActivity)

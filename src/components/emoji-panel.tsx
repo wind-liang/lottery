@@ -30,10 +30,16 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
   const [isOnline, setIsOnline] = useState(true)
   const [retryCount, setRetryCount] = useState(0)
 
-  // 监听网络状态变化
+  // 监听网络状态变化 - 优化监听频率
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
+    const handleOnline = () => {
+      console.log('🌐 [EmojiPanel] 网络恢复')
+      setIsOnline(true)
+    }
+    const handleOffline = () => {
+      console.log('🌐 [EmojiPanel] 网络断开')
+      setIsOnline(false)
+    }
     
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine)
@@ -47,6 +53,7 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
     }
   }, [])
 
+  // 优化倒计时机制，减少不必要的状态更新
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => {
@@ -58,13 +65,13 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
     }
   }, [countdown, isDisabled, isSending])
 
-  // 清除错误提示
+  // 清除错误提示 - 优化定时器管理
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
         setError(null)
         setRetryCount(0)
-      }, 5000) // 5秒后自动清除错误提示
+      }, 8000) // 增加到8秒后清除错误提示，减少状态更新频率
       return () => clearTimeout(timer)
     }
   }, [error])
@@ -96,12 +103,15 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
       
       if (success) {
         console.log('🎭 表情发送成功')
-        setCountdown(5) // 成功后设置5秒倒计时
+        setCountdown(8) // 增加到8秒倒计时，减少频繁发送
         
-        // 发送成功后立即刷新用户数据
+        // 发送成功后的回调 - 减少不必要的数据刷新
         if (onEmojiSent) {
           console.log('🔄 表情发送成功，触发数据刷新')
-          onEmojiSent()
+          // 延迟调用，避免与实时订阅冲突
+          setTimeout(() => {
+            onEmojiSent()
+          }, 500)
         }
       } else {
         throw new Error('表情发送失败，请稍后重试')

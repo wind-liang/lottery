@@ -539,10 +539,10 @@ export class GameLogic {
     }
   }
 
-  // 发送表情
+  // 发送表情 - 优化重试机制和错误处理
   static async sendEmoji(userId: string, roomId: string, emoji: string): Promise<boolean> {
-    const MAX_RETRIES = 3
-    const RETRY_DELAY = 1000 // 1秒
+    const MAX_RETRIES = 2 // 减少重试次数
+    const RETRY_DELAY = 2000 // 增加重试间隔到2秒
     
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -556,7 +556,7 @@ export class GameLogic {
         const expiresAt = new Date()
         expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
         
-        // 先检查用户是否存在
+        // 先检查用户是否存在 - 减少不必要的查询
         const { data: existingUser, error: checkError } = await supabase
           .from('users')
           .select('id, nickname, current_emoji, emoji_expires_at')
@@ -568,7 +568,12 @@ export class GameLogic {
           if (checkError.code === 'PGRST116') { // 用户不存在
             throw new Error('用户不存在，请重新加入房间')
           }
-          throw new Error('查询用户信息失败，请稍后重试')
+          if (attempt === MAX_RETRIES) {
+            throw new Error('查询用户信息失败，请稍后重试')
+          }
+          // 第一次失败时等待后重试
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+          continue
         }
         
         console.log('🎭 [发送表情] 用户检查通过:', existingUser)
@@ -582,92 +587,48 @@ export class GameLogic {
           })
           .eq('id', userId)
           .select('id, nickname, current_emoji, emoji_expires_at')
-        
-        if (error) {
-          console.error('🎭 数据库更新失败:', error)
-          // 数据库连接错误，可以重试
-          if (error.code === 'PGRST301' || error.message.includes('connection')) {
-            if (attempt < MAX_RETRIES) {
-              console.log(`🔄 数据库连接错误，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
-              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-              continue
-            }
-            throw new Error('数据库连接不稳定，请稍后重试')
-          }
-          throw new Error('数据库更新失败，请稍后重试')
-        }
-        
-        // 验证更新结果
-        if (!data || data.length === 0) {
-          console.error('🎭 更新失败：没有找到匹配的用户记录')
-          throw new Error('更新失败，用户可能已离开房间')
-        }
-        
-        const updatedUser = data[0]
-        if (updatedUser.current_emoji !== emoji) {
-          console.error('🎭 更新失败：表情字段更新不正确', {
-            expected: emoji,
-            actual: updatedUser.current_emoji
-          })
-          // 这种情况可能是并发问题，可以重试
-          if (attempt < MAX_RETRIES) {
-            console.log(`🔄 表情更新不正确，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-            continue
-          }
-          throw new Error('表情更新失败，请稍后重试')
-        }
-        
-        // 再次查询数据库验证是否真的更新了
-        console.log('🔍 重新查询数据库验证更新结果...')
-        const { data: verifyUser, error: verifyError } = await supabase
-          .from('users')
-          .select('id, nickname, current_emoji, emoji_expires_at')
-          .eq('id', userId)
           .single()
-        
-        if (verifyError) {
-          console.error('🎭 验证查询失败:', verifyError)
-          // 验证失败但更新可能成功了，不强制重试
-          console.log('⚠️ 验证失败但更新可能成功，继续执行')
-        } else {
-          console.log('🎭 数据库实际状态:', verifyUser)
-          
-          if (verifyUser.current_emoji !== emoji) {
-            console.error('🚨 严重错误：数据库实际没有更新！', {
-              expected: emoji,
-              actual: verifyUser.current_emoji,
-              userInDb: verifyUser
-            })
-            // 这种情况可能是数据库延迟，可以重试
-            if (attempt < MAX_RETRIES) {
-              console.log(`🔄 数据库实际没有更新，${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
-              await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-              continue
-            }
-            throw new Error('数据库同步失败，请稍后重试')
-          } else {
-            console.log('✅ 数据库实际更新确认成功!')
-          }
-        }
-        
-        console.log(`🎉 [发送表情] 第 ${attempt} 次尝试成功`)
-        return true
-        
-      } catch (error) {
-        console.error(`🎭 [发送表情] 第 ${attempt} 次尝试失败:`, error)
-        
-        // 如果是最后一次尝试，抛出错误
-        if (attempt === MAX_RETRIES) {
-          if (error instanceof Error) {
-            throw error
-          } else {
+
+        if (error) {
+          console.error(`🎭 [发送表情] 第${attempt}次尝试失败:`, error)
+          if (attempt === MAX_RETRIES) {
             throw new Error('发送表情失败，请稍后重试')
           }
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
+          continue
+        }
+
+        // 发送成功，同时插入表情记录 - 减少并发操作
+        try {
+          const { error: insertError } = await supabase
+            .from('emojis')
+            .insert({
+              user_id: userId,
+              room_id: roomId,
+              emoji: emoji,
+              expires_at: expiresAt.toISOString()
+            })
+
+          if (insertError) {
+            console.error('🎭 [发送表情] 插入表情记录失败:', insertError)
+            // 表情记录插入失败不影响用户状态更新，仅记录错误
+          }
+        } catch (insertError) {
+          console.error('🎭 [发送表情] 插入表情记录异常:', insertError)
+        }
+
+        console.log('🎭 [发送表情] 发送成功:', data)
+        return true
+
+      } catch (error) {
+        console.error(`🎭 [发送表情] 第${attempt}次尝试异常:`, error)
+        
+        if (attempt === MAX_RETRIES) {
+          console.error('🎭 [发送表情] 所有重试均失败:', error)
+          throw error
         }
         
         // 等待后重试
-        console.log(`🔄 ${RETRY_DELAY}ms后进行第 ${attempt + 1} 次重试`)
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
       }
     }

@@ -163,15 +163,15 @@ export default function Home() {
     enabled: !!currentUser && !!room
   })
 
-  // 定期清理过期表情（不需要刷新UI，实时订阅会自动处理）
+  // 定期清理过期表情（降低频率，减少数据库负载）
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       GameLogic.cleanupExpiredEmojis()
-      // 移除 refreshUsers() 调用 - 实时订阅会自动处理表情变化
-    }, 30000) // 增加到30秒，只做数据清理，不刷新UI
+      // 实时订阅会自动处理表情变化，无需手动刷新
+    }, 300000) // 改为5分钟清理一次，大幅降低频率
 
     return () => clearInterval(cleanupInterval)
-  }, []) // 移除 refreshUsers 依赖
+  }, [])
 
   const initializeApp = async (user?: User) => {
     try {
@@ -498,13 +498,14 @@ export default function Home() {
     // 倒计时结束后只关闭弹窗，等待主持人手动点击按钮进入绝地翻盘阶段
   }
 
-  // 监听用户变化以检查是否所有人都选择完毕
+  // 监听用户变化以检查是否所有人都选择完毕 - 优化依赖项
   useEffect(() => {
     // 只在奖励选择阶段且有用户且弹窗未显示过时才检查
     if (room?.stage === 'reward_selection' && users.length > 0 && !comebackModalShownRef.current) {
       console.log('🔍 [检查选择状态] 开始检查，弹窗是否已显示过:', comebackModalShownRef.current)
       
-      setTimeout(async () => {
+      // 使用防抖机制，避免频繁检查
+      const checkTimeout = setTimeout(async () => {
         try {
           // 再次检查标记，防止在延迟期间被其他调用标记
           if (comebackModalShownRef.current) {
@@ -550,9 +551,17 @@ export default function Home() {
         } catch (error) {
           console.error('检查选择状态失败:', error)
         }
-      }, 500) // 延迟检查，确保状态已更新
+      }, 1000) // 增加到1秒防抖，减少频繁检查
+
+      return () => clearTimeout(checkTimeout)
     }
-  }, [room?.stage, room?.id, users.filter(u => u.role === 'player' && u.order_number != null).map(u => u.selected_reward).join(',')]) // 只监听玩家的奖励选择状态变化
+  }, [
+    room?.stage, 
+    room?.id, 
+    // 优化依赖项：只关注玩家的奖励选择状态变化，避免其他状态变化导致的重复检查
+    users.filter(u => u.role === 'player' && u.order_number != null).length,
+    users.filter(u => u.role === 'player' && u.order_number != null && u.selected_reward != null).length
+  ])
 
   // 如果未登录，显示登录界面
   if (!isLoggedIn && !loading) {
@@ -608,8 +617,8 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8 relative z-20">
         <div className="max-w-md mx-auto">
           {/* 根据游戏阶段显示不同内容 */}
-          {room.stage === 'reward_selection' ? (
-            /* 奖励选择阶段 */
+          {room.stage === 'reward_selection' && !showComebackModal ? (
+            /* 奖励选择阶段 - 但不在绝地翻盘弹窗状态时 */
             <>
               {/* 奖励选择组件 */}
               <RewardSelection
@@ -631,9 +640,32 @@ export default function Home() {
                 onKickUser={kickUser}
               />
             </>
+          ) : showComebackModal ? (
+            /* 当绝地翻盘弹窗显示时，显示等待界面 */
+            <>
+              {/* 抽奖箱 - 但显示等待绝地翻盘的状态 */}
+              <LotteryBox 
+                roomId={room.id}
+                stage="final_lottery" // 传递绝地翻盘阶段状态
+                currentUser={currentUser}
+                users={users}
+              />
+              
+              {/* 用户头像区域 */}
+              <UserAvatars
+                users={users}
+                currentUser={currentUser}
+                onUserClick={(user: User) => {
+                  // 处理用户点击事件
+                  console.log('用户点击:', user)
+                }}
+                onRoleChange={updateUserRole}
+                onKickUser={kickUser}
+              />
+            </>
           ) : (
             <>
-              {/* 抽奖箱 */}
+              {/* 其他阶段：抽奖箱 */}
               <LotteryBox 
                 roomId={room.id}
                 stage={room.stage}

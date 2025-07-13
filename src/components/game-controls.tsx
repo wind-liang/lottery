@@ -70,12 +70,15 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
 
   const isHost = currentUser.role === 'host'
 
-  // 检查所有人是否选择完毕
+  // 检查所有人是否选择完毕 - 优化检查逻辑，减少频繁查询
   useEffect(() => {
+    let checkTimer: NodeJS.Timeout | null = null
+    
     const checkRewardSelectionComplete = async () => {
       if (room.stage === 'reward_selection') {
         try {
           const isComplete = await GameLogic.areAllRewardSelectionComplete(room.id)
+          console.log('🔍 [GameControls] 奖励选择完成状态检查:', isComplete)
           setAllRewardSelectionComplete(isComplete)
         } catch (error) {
           console.error('检查奖励选择完成状态失败:', error)
@@ -85,8 +88,23 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
       }
     }
 
-    checkRewardSelectionComplete()
-  }, [room.stage, room.id, users])
+    // 使用防抖机制，避免频繁检查
+    checkTimer = setTimeout(() => {
+      checkRewardSelectionComplete()
+    }, 1000) // 1秒防抖
+
+    return () => {
+      if (checkTimer) {
+        clearTimeout(checkTimer)
+      }
+    }
+  }, [
+    room.stage, 
+    room.id, 
+    // 优化依赖项：只关注有选择权的玩家数量和已选择奖励的玩家数量，避免其他状态变化
+    users.filter(u => u.role === 'player' && u.order_number != null).length,
+    users.filter(u => u.role === 'player' && u.order_number != null && u.selected_reward != null).length
+  ])
 
   const handleStartLottery = async () => {
     if (!isHost) return
@@ -429,7 +447,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
           {room.stage === 'reward_selection' && (
             <div className="space-y-2">
               {/* 只有当所有人都没有选择完毕时才显示"开始奖励选择"按钮 */}
-              {!allRewardSelectionComplete && (
+              {!allRewardSelectionComplete && !room.current_selector && (
                 <button
                   onClick={() => confirmAction(
                     '开始奖励选择',
@@ -441,6 +459,34 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 >
                   {isLoading ? '处理中...' : '开始奖励选择'}
                 </button>
+              )}
+              
+              {/* 显示当前选择进度 */}
+              {room.current_selector && (
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <p className="text-blue-800 text-sm font-medium">
+                    奖励选择进行中...
+                  </p>
+                  <p className="text-blue-600 text-xs mt-1">
+                    {(() => {
+                      const playersWithOrder = users.filter(u => u.role === 'player' && u.order_number != null)
+                      const playersWithReward = playersWithOrder.filter(u => u.selected_reward != null)
+                      return `${playersWithReward.length}/${playersWithOrder.length} 人已选择`
+                    })()}
+                  </p>
+                </div>
+              )}
+              
+              {/* 当所有人选择完毕时显示不同的状态 */}
+              {allRewardSelectionComplete && (
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-green-800 text-sm font-medium">
+                    ✅ 所有人已选择完毕
+                  </p>
+                  <p className="text-green-600 text-xs mt-1">
+                    可以进入绝地翻盘阶段
+                  </p>
+                </div>
               )}
               
               <button

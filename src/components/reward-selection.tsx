@@ -119,21 +119,35 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     fetchRewards()
   }, [fetchRewards])
 
-  // 倒计时 - 当选择者变化时重置
+  // 倒计时 - 当选择者变化时重置，添加防抖机制
   useEffect(() => {
+    let resetTimeout: NodeJS.Timeout | null = null
+    
     if (selectionInProgress && currentSelector) {
       console.log('🕐 [倒计时] 选择者变化，重置倒计时:', currentSelector.nickname)
-      setTimeLeft(30)
-      setSelectedReward(null) // 清除选择状态
+      
+      // 使用防抖机制，避免频繁重置
+      resetTimeout = setTimeout(() => {
+        setTimeLeft(30)
+        setSelectedReward(null) // 清除选择状态
+      }, 500)
     } else if (!selectionInProgress) {
       // 如果选择流程结束，也重置倒计时
       console.log('🕐 [倒计时] 选择流程结束，重置倒计时')
-      setTimeLeft(30)
-      setSelectedReward(null)
+      resetTimeout = setTimeout(() => {
+        setTimeLeft(30)
+        setSelectedReward(null)
+      }, 500)
+    }
+    
+    return () => {
+      if (resetTimeout) {
+        clearTimeout(resetTimeout)
+      }
     }
   }, [selectionInProgress, currentSelector?.id])
 
-  // 倒计时执行
+  // 倒计时执行 - 优化定时器管理
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
     
