@@ -15,6 +15,7 @@ import { LotteryWinnerNotification } from '@/components/lottery-winner-notificat
 import { RewardSelection } from '@/components/reward-selection'
 import { ComebackModal } from '@/components/comeback-modal'
 import { RewardViewer } from '@/components/reward-viewer'
+import { RefreshButton } from '@/components/refresh-button'
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
 import type { Database } from '@/lib/supabase'
@@ -628,6 +629,14 @@ export default function Home() {
         roomId={room.id}
         users={users}
         className="fixed bottom-20 right-4 z-50"
+      />
+      
+      {/* 刷新按钮 */}
+      <RefreshButton 
+        onRefresh={async () => {
+          await refreshRoom()
+        }}
+        className="bottom-36 right-4"
       />
       
       {/* 主游戏区域 */}
