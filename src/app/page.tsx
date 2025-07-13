@@ -21,11 +21,13 @@ import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
 type Room = Database['public']['Tables']['rooms']['Row']
+type Reward = Database['public']['Tables']['rewards']['Row']
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [room, setRoom] = useState<Room | null>(null)
   const [users, setUsers] = useState<User[]>([])
+  const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -145,11 +147,17 @@ export default function Home() {
     console.log('🏆 [实时] 已设置获奖弹窗状态')
   }, [currentUser])
 
+  const handleRewardsChange = useCallback((rewardsData: Reward[]) => {
+    console.log('🎁 [实时] 奖励数据更新:', rewardsData.length)
+    setRewards(rewardsData)
+  }, [])
+
   // 使用实时通信hook
   const { refreshRoom } = useRealtime({
     roomId: room?.id || null,
     onUsersChange: handleUsersChange,
     onRoomChange: handleRoomChange,
+    onRewardsChange: handleRewardsChange,
     onEmojiReceived: handleEmojiReceived,
     onUserJoined: handleUserJoined,
     onUserLeft: handleUserLeft,
@@ -625,6 +633,7 @@ export default function Home() {
                 room={room}
                 currentUser={currentUser}
                 users={users}
+                rewards={rewards}
                 onStageChange={() => refreshRoom()}
               />
               

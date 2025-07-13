@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
-import { useRealtime } from '@/lib/use-realtime'
 import { Crown, Clock, Check } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
@@ -16,11 +15,11 @@ interface RewardSelectionProps {
   room: Room
   currentUser: User
   users: User[]
+  rewards: Reward[]
   onStageChange: () => void
 }
 
-export function RewardSelection({ room, currentUser, users, onStageChange }: RewardSelectionProps) {
-  const [rewards, setRewards] = useState<Reward[]>([])
+export function RewardSelection({ room, currentUser, users, rewards, onStageChange }: RewardSelectionProps) {
   const [selectedReward, setSelectedReward] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState(30)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -37,26 +36,6 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     .filter(user => user.role === 'host' && user.is_online)
     .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
     .slice(0, 2)
-
-  // 初始加载奖励数据
-  const fetchRewards = useCallback(async () => {
-    try {
-      const rewardList = await GameLogic.getRewards(room.id)
-      console.log('🎁 [RewardSelection] 初始加载奖励数据:', rewardList.length)
-      setRewards(rewardList)
-    } catch (error) {
-      console.error('获取奖励列表失败:', error)
-    }
-  }, [room.id])
-
-  // 使用实时订阅来更新奖励列表
-  useRealtime({
-    roomId: room.id,
-    onRewardsChange: (rewardsData) => {
-      console.log('🎁 [RewardSelection] 收到奖励数据更新:', rewardsData.length)
-      setRewards(rewardsData)
-    }
-  })
 
   const handleRandomSelection = useCallback(async () => {
     if (!currentSelector) return
@@ -114,17 +93,14 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     handleRandomSelectionRef.current = handleRandomSelection
   }, [handleRandomSelection])
 
-  // 初始加载奖励数据
-  useEffect(() => {
-    fetchRewards()
-  }, [fetchRewards])
+  // 奖励数据由父组件传入，不需要单独加载
 
   // 倒计时 - 当选择者变化时重置，添加防抖机制
   useEffect(() => {
     let resetTimeout: NodeJS.Timeout | null = null
     
-    if (selectionInProgress && currentSelector) {
-      console.log('🕐 [倒计时] 选择者变化，重置倒计时:', currentSelector.nickname)
+    if (selectionInProgress && currentSelector && rewards.length > 0) {
+      console.log('🕐 [倒计时] 选择者变化，重置倒计时:', currentSelector.nickname, '奖励数量:', rewards.length)
       
       // 使用防抖机制，避免频繁重置
       resetTimeout = setTimeout(() => {
@@ -138,6 +114,9 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         setTimeLeft(30)
         setSelectedReward(null)
       }, 500)
+    } else if (selectionInProgress && currentSelector && rewards.length === 0) {
+      // 如果奖励还没有加载完成，等待奖励加载
+      console.log('🕐 [倒计时] 等待奖励加载完成才开始倒计时')
     }
     
     return () => {
@@ -145,14 +124,14 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         clearTimeout(resetTimeout)
       }
     }
-  }, [selectionInProgress, currentSelector?.id])
+  }, [selectionInProgress, currentSelector?.id, rewards.length])
 
   // 倒计时执行 - 优化定时器管理
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
     
-    if (selectionInProgress && currentSelector && currentSelector.id === currentUser.id) {
-      console.log('🕐 [倒计时] 开始倒计时，当前选择者:', currentSelector.nickname)
+    if (selectionInProgress && currentSelector && currentSelector.id === currentUser.id && rewards.length > 0) {
+      console.log('🕐 [倒计时] 开始倒计时，当前选择者:', currentSelector.nickname, '奖励数量:', rewards.length)
       
       timer = setInterval(() => {
         setTimeLeft(prev => {
@@ -162,7 +141,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
             // 时间到了，随机选择一个奖励
             console.log('⏰ [倒计时] 时间到，随机选择奖励')
             handleRandomSelectionRef.current()
-            return 30
+            // 不要立即重置倒计时，让选择逻辑完成后再处理
+            return 0
           }
           return newTime
         })
@@ -171,7 +151,8 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
       console.log('🚫 [倒计时] 不满足倒计时条件:', {
         selectionInProgress,
         currentSelector: currentSelector?.nickname,
-        isMyTurn: currentSelector?.id === currentUser.id
+        isMyTurn: currentSelector?.id === currentUser.id,
+        rewardsLoaded: rewards.length > 0
       })
     }
 
@@ -181,7 +162,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         clearInterval(timer)
       }
     }
-  }, [selectionInProgress, currentSelector?.id, currentUser.id])
+  }, [selectionInProgress, currentSelector?.id, currentUser.id, rewards.length])
 
 
 
