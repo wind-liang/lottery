@@ -90,7 +90,7 @@ export function RealtimeNotifications({ className = '' }: RealtimeNotificationsP
   }, [])
 
   return (
-    <div className={`fixed top-4 right-4 z-50 space-y-2 ${className}`}>
+    <div className={`fixed top-16 right-4 z-50 space-y-2 ${className}`}>
       {notifications.map((notification) => (
         <div
           key={notification.id}
