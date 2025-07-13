@@ -139,14 +139,14 @@ export function useRealtime({
   const usersFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const roomFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // 防抖函数
+  // 防抖函数 - 增加防抖时间减少频繁查询
   const debouncedFetchUsers = useCallback(() => {
     if (usersFetchTimeoutRef.current) {
       clearTimeout(usersFetchTimeoutRef.current)
     }
     usersFetchTimeoutRef.current = setTimeout(() => {
       fetchRoomUsers()
-    }, 300) // 300ms 防抖
+    }, 1000) // 增加到1秒防抖，减少频繁查询
   }, [fetchRoomUsers])
 
   const debouncedFetchRoom = useCallback(() => {
@@ -155,7 +155,7 @@ export function useRealtime({
     }
     roomFetchTimeoutRef.current = setTimeout(() => {
       fetchRoom()
-    }, 300) // 300ms 防抖
+    }, 1000) // 增加到1秒防抖，减少频繁查询
   }, [fetchRoom])
 
   // 设置实时订阅
@@ -236,8 +236,8 @@ export function useRealtime({
             }
           }
           
-          // 使用防抖刷新用户列表
-          debouncedFetchUsers()
+          // 移除对用户列表的刷新 - 表情插入不需要刷新用户列表
+          // 用户的 current_emoji 字段变化会通过用户表订阅自动处理
         }
       )
       .subscribe()

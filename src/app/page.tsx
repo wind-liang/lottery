@@ -146,7 +146,7 @@ export default function Home() {
   }, [currentUser])
 
   // 使用实时通信hook
-  const { refreshUsers, refreshRoom } = useRealtime({
+  const { refreshRoom } = useRealtime({
     roomId: room?.id || null,
     onUsersChange: handleUsersChange,
     onRoomChange: handleRoomChange,
@@ -163,17 +163,15 @@ export default function Home() {
     enabled: !!currentUser && !!room
   })
 
-  // 定期清理过期表情和刷新UI
+  // 定期清理过期表情（不需要刷新UI，实时订阅会自动处理）
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       GameLogic.cleanupExpiredEmojis()
-      // 检查是否有表情过期，如果有则刷新UI
-      // 使用 ref 来避免依赖 users 状态
-      refreshUsers()
-    }, 5000) // 每5秒检查一次，减少频率
+      // 移除 refreshUsers() 调用 - 实时订阅会自动处理表情变化
+    }, 30000) // 增加到30秒，只做数据清理，不刷新UI
 
     return () => clearInterval(cleanupInterval)
-  }, [refreshUsers])
+  }, []) // 移除 refreshUsers 依赖
 
   const initializeApp = async (user?: User) => {
     try {

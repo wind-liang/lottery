@@ -12,10 +12,16 @@ interface UseUserPresenceProps {
 export function useUserPresence({ userId, roomId, enabled = true }: UseUserPresenceProps) {
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastHeartbeatRef = useRef<number>(0)
+  const lastOnlineStatusRef = useRef<boolean | null>(null) // 跟踪上次的在线状态
 
-  // 更新用户在线状态
+  // 更新用户在线状态 - 只有在状态真正变化时才更新数据库
   const updateUserStatus = useCallback(async (isOnline: boolean) => {
     if (!userId || !roomId) return
+
+    // 如果状态没有变化，避免不必要的数据库更新
+    if (lastOnlineStatusRef.current === isOnline) {
+      return
+    }
 
     try {
       const { error } = await supabase
@@ -27,40 +33,30 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
 
       if (error) {
         console.error('❌ [Presence] 更新用户状态失败:', error)
+      } else {
+        lastOnlineStatusRef.current = isOnline
       }
     } catch (error) {
       console.error('❌ [Presence] 更新用户状态异常:', error)
     }
   }, [userId, roomId])
 
-  // 发送心跳
+  // 发送心跳 - 使用优化后的状态更新
   const sendHeartbeat = useCallback(async () => {
     if (!userId || !roomId) return
 
     const now = Date.now()
     
     // 避免过于频繁的心跳
-    if (now - lastHeartbeatRef.current < 5000) {
+    if (now - lastHeartbeatRef.current < 10000) {
       return
     }
 
     lastHeartbeatRef.current = now
 
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          is_online: true
-        })
-        .eq('id', userId)
-
-      if (error) {
-        console.error('❌ [Presence] 心跳发送失败:', error)
-      }
-    } catch (error) {
-      console.error('❌ [Presence] 心跳发送异常:', error)
-    }
-  }, [userId, roomId])
+    // 使用优化后的状态更新函数，只有在状态变化时才更新数据库
+    await updateUserStatus(true)
+  }, [userId, roomId, updateUserStatus])
 
   // 设置用户为在线状态
   const setUserOnline = useCallback(async () => {
@@ -81,8 +77,8 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
     // 立即发送一次心跳
     sendHeartbeat()
     
-    // 设置定时心跳（每15秒）
-    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 15000)
+    // 设置定时心跳（每60秒）- 增加间隔减少数据库更新
+    heartbeatIntervalRef.current = setInterval(sendHeartbeat, 60000)
   }, [sendHeartbeat])
 
   // 停止心跳检测
@@ -143,14 +139,14 @@ export function useUserPresence({ userId, roomId, enabled = true }: UseUserPrese
       }
     }
 
-    // 限制活跃检测的频率
+    // 限制活跃检测的频率 - 减少触发频率
     let activityTimeout: NodeJS.Timeout | null = null
     const throttledActivity = () => {
       if (activityTimeout) return
       activityTimeout = setTimeout(() => {
         handleUserActivity()
         activityTimeout = null
-      }, 10000) // 10秒内最多触发一次
+      }, 30000) // 30秒内最多触发一次，减少频率
     }
 
     document.addEventListener('mousemove', throttledActivity)
