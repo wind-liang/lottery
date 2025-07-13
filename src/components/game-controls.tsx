@@ -379,26 +379,53 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
         console.error('🎯 [绝地翻盘] onWinnerDrawn 回调不存在')
       }
 
-      // 手动广播机制：向用户表添加一个临时字段来触发所有客户端的实时监听
-      console.log('🎯 [绝地翻盘] 启动手动广播机制...')
+      // 增强的多重广播机制：确保所有客户端都能收到通知
+      console.log('🎯 [绝地翻盘] 启动增强广播机制...')
+      
+      // 方法1：延长表情标记的持续时间，确保所有客户端都能接收到
       try {
-        // 更新获奖者的一个字段来触发实时监听（所有客户端都在监听用户表）
+        console.log('🎯 [绝地翻盘] 更新获奖者表情标记...')
         await supabase
           .from('users')
           .update({ 
             current_emoji: '🏆', // 临时设置一个表情
-            emoji_expires_at: new Date(Date.now() + 1000).toISOString() // 1秒后过期
+            emoji_expires_at: new Date(Date.now() + 5000).toISOString() // 延长到5秒，确保所有客户端都能收到
           })
           .eq('id', winner.id)
         
-        console.log('🎯 [绝地翻盘] 手动广播成功')
+        console.log('🎯 [绝地翻盘] 表情标记更新成功')
       } catch (broadcastError) {
-        console.error('🎯 [绝地翻盘] 手动广播失败:', broadcastError)
+        console.error('🎯 [绝地翻盘] 表情标记更新失败:', broadcastError)
       }
 
-      // 等待一下确保数据库更新和实时监听有时间处理
+      // 方法2：间隔性触发，增加接收成功率
+      const broadcastRetries = 3
+      for (let i = 0; i < broadcastRetries; i++) {
+        try {
+          console.log(`🎯 [绝地翻盘] 执行第 ${i + 1} 次广播重试...`)
+          
+          // 通过更新获奖者的 updated_at 字段来触发实时监听
+          await supabase
+            .from('users')
+            .update({ 
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', winner.id)
+          
+          console.log(`🎯 [绝地翻盘] 第 ${i + 1} 次广播成功`)
+          
+          // 每次重试间隔500ms
+          if (i < broadcastRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500))
+          }
+        } catch (retryError) {
+          console.error(`🎯 [绝地翻盘] 第 ${i + 1} 次广播失败:`, retryError)
+        }
+      }
+
+      // 等待足够时间确保所有实时监听都有机会处理
       console.log('🎯 [绝地翻盘] 等待实时监听处理...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
       // 等待5秒后进入完结阶段
       setTimeout(async () => {

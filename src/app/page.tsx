@@ -142,10 +142,19 @@ export default function Home() {
     console.log('🏆 [实时] 是否是绝地翻盘:', winner.orderNumber === 0)
     console.log('🏆 [实时] 当前用户:', currentUser?.nickname)
     
-    // 显示获奖弹窗
-    setLotteryWinner(winner)
-    console.log('🏆 [实时] 已设置获奖弹窗状态')
-  }, [currentUser])
+    // 防重复机制：检查是否已经显示了相同的获奖者
+    if (lotteryWinner && lotteryWinner.userId === winner.userId && lotteryWinner.orderNumber === winner.orderNumber) {
+      console.log('🏆 [实时] 已显示相同获奖者，跳过重复显示')
+      return
+    }
+    
+    // 时序协调：确保在状态更新之前有足够的准备时间
+    setTimeout(() => {
+      console.log('🏆 [实时] 延迟显示获奖弹窗，确保状态同步')
+      setLotteryWinner(winner)
+      console.log('🏆 [实时] 已设置获奖弹窗状态')
+    }, 100) // 100ms延迟，确保状态同步
+  }, [currentUser, lotteryWinner])
 
   const handleRewardsChange = useCallback((rewardsData: Reward[]) => {
     console.log('🎁 [实时] 奖励数据更新:', rewardsData.length)

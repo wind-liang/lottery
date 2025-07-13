@@ -497,6 +497,10 @@ export class GameLogic {
       
       console.log('✅ [drawFinalLotteryWinner] 数据库更新成功，应该触发实时监听')
       
+      // 等待一段时间确保数据库事务完成和实时监听有时间处理
+      console.log('⏳ [drawFinalLotteryWinner] 等待数据库事务完成...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       // 验证更新是否成功
       const { data: verifyData } = await supabase
         .from('final_lottery_participants')
@@ -505,6 +509,10 @@ export class GameLogic {
         .single()
       
       console.log('🔍 [drawFinalLotteryWinner] 验证更新结果:', verifyData)
+      
+      // 再次等待确保实时监听有充足时间处理
+      console.log('⏳ [drawFinalLotteryWinner] 等待实时监听处理...')
+      await new Promise(resolve => setTimeout(resolve, 300))
       
       return selectedParticipant.users
     } catch (error) {

@@ -24,13 +24,19 @@ export function LotteryWinnerNotification({
 
   useEffect(() => {
     if (winner) {
-      setIsVisible(true)
+      console.log('🏆 [WinnerNotification] 显示获奖通知:', winner.nickname, winner.orderNumber === 0 ? '绝地翻盘' : `第${winner.orderNumber}名`)
+      
+      // 延迟显示，确保状态同步
+      setTimeout(() => {
+        setIsVisible(true)
+      }, 50) // 50ms延迟，确保渲染稳定
       
       // 根据是否是绝地翻盘设置不同的显示时间
       const isFinalLottery = winner.orderNumber === 0 // 绝地翻盘标识
-      const displayTime = isFinalLottery ? 10000 : 8000 // 绝地翻盘10秒，普通抽奖8秒
+      const displayTime = isFinalLottery ? 12000 : 8000 // 绝地翻盘12秒，普通抽奖8秒（增加绝地翻盘显示时间）
       
       const timer = setTimeout(() => {
+        console.log('🏆 [WinnerNotification] 自动隐藏获奖通知')
         setIsVisible(false)
         setTimeout(() => {
           onClose()
@@ -42,9 +48,10 @@ export function LotteryWinnerNotification({
       }
     } else {
       // 当 winner 为 null 时，立即隐藏弹窗
+      console.log('🏆 [WinnerNotification] 隐藏获奖通知')
       setIsVisible(false)
     }
-  }, [winner]) // 只依赖 winner，不依赖 onClose
+  }, [winner, onClose]) // 添加 onClose 依赖，确保函数引用变化时重新设置
 
   // 移除这个早期返回，让 AnimatePresence 处理动画
 
