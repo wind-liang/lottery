@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Play, X } from 'lucide-react'
-import { GameLogic } from '@/lib/game-logic'
+import { GameLogic } from '../lib/game-logic'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
@@ -66,8 +66,27 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     action: () => void
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [allRewardSelectionComplete, setAllRewardSelectionComplete] = useState(false)
 
   const isHost = currentUser.role === 'host'
+
+  // 检查所有人是否选择完毕
+  useEffect(() => {
+    const checkRewardSelectionComplete = async () => {
+      if (room.stage === 'reward_selection') {
+        try {
+          const isComplete = await GameLogic.areAllRewardSelectionComplete(room.id)
+          setAllRewardSelectionComplete(isComplete)
+        } catch (error) {
+          console.error('检查奖励选择完成状态失败:', error)
+        }
+      } else {
+        setAllRewardSelectionComplete(false)
+      }
+    }
+
+    checkRewardSelectionComplete()
+  }, [room.stage, room.id, users])
 
   const handleStartLottery = async () => {
     if (!isHost) return
@@ -409,17 +428,20 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
           {/* 奖励选择阶段 */}
           {room.stage === 'reward_selection' && (
             <div className="space-y-2">
-              <button
-                onClick={() => confirmAction(
-                  '开始奖励选择',
-                  '确定要开始奖励选择流程吗？',
-                  handleStartRewardSelection
-                )}
-                disabled={isLoading}
-                className="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-700 disabled:opacity-50"
-              >
-                {isLoading ? '处理中...' : '开始奖励选择'}
-              </button>
+              {/* 只有当所有人都没有选择完毕时才显示"开始奖励选择"按钮 */}
+              {!allRewardSelectionComplete && (
+                <button
+                  onClick={() => confirmAction(
+                    '开始奖励选择',
+                    '确定要开始奖励选择流程吗？',
+                    handleStartRewardSelection
+                  )}
+                  disabled={isLoading}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-700 disabled:opacity-50"
+                >
+                  {isLoading ? '处理中...' : '开始奖励选择'}
+                </button>
+              )}
               
               <button
                 onClick={() => confirmAction(

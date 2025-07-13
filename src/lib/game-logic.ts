@@ -246,6 +246,30 @@ export class GameLogic {
     }
   }
 
+  // 检查所有人是否选择完毕
+  static async areAllRewardSelectionComplete(roomId: string): Promise<boolean> {
+    try {
+      const { data: players, error } = await supabase
+        .from('users')
+        .select('id, nickname, order_number, selected_reward')
+        .eq('room_id', roomId)
+        .eq('role', 'player')
+        .not('order_number', 'is', null)
+        .order('order_number', { ascending: true })
+      
+      if (error) {
+        console.error('🔍 [areAllRewardSelectionComplete] 查询玩家失败:', error)
+        throw error
+      }
+      
+      // 检查是否所有玩家都选择了奖励
+      return players?.every(player => !!player.selected_reward) || false
+    } catch (error) {
+      console.error('检查奖励选择完成状态失败:', error)
+      return false
+    }
+  }
+
   // 获取最后5名玩家（用于绝地翻盘）
   static async getLastFivePlayers(roomId: string): Promise<User[]> {
     try {
