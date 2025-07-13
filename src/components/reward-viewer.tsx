@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Gift, Crown, User, Users, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GameLogic } from '@/lib/game-logic'
@@ -51,12 +51,9 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
       setRewardCache(rewardList)
       setLastFetchTime(now)
       
-      // 只有当所有人都选择完毕时才查询绝地翻盘获胜者
-      const allPlayersSelected = users.filter(u => u.role === 'player' && u.order_number != null)
-        .every(u => u.selected_reward != null)
-      
+      // 稳定的绝地翻盘获胜者查询 - 不依赖于选择状态的实时变化
       let finalLotteryWinner = null
-      if (allPlayersSelected) {
+      try {
         const { data: finalWinner, error: finalError } = await supabase
           .from('final_lottery_participants')
           .select(`
@@ -72,6 +69,8 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
         } else {
           finalLotteryWinner = finalWinner
         }
+      } catch (error) {
+        console.error('查询绝地翻盘获胜者异常:', error)
       }
 
       await buildUserRewards(rewardList, finalLotteryWinner)
@@ -104,11 +103,8 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     // 如果没有传入绝地翻盘获胜者，则查询
     let winner = finalLotteryWinner
     if (!winner) {
-      // 只有当所有人都选择完毕时才查询绝地翻盘获胜者
-      const allPlayersSelected = users.filter(u => u.role === 'player' && u.order_number != null)
-        .every(u => u.selected_reward != null)
-      
-      if (allPlayersSelected) {
+      // 稳定的绝地翻盘获胜者查询 - 不依赖于选择状态的实时变化
+      try {
         const { data: finalWinner, error: finalError } = await supabase
           .from('final_lottery_participants')
           .select(`
@@ -124,6 +120,8 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
         } else {
           winner = finalWinner
         }
+      } catch (error) {
+        console.error('查询绝地翻盘获胜者异常:', error)
       }
     }
 
@@ -169,12 +167,18 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     }
   }, [isOpen, roomId])
 
-  // 监听用户数据变化，实时更新奖励选择进度
+  // 监听用户数据变化，实时更新奖励选择进度 - 添加防抖机制
   useEffect(() => {
     // 如果弹窗已经打开且有奖励缓存，则基于最新用户数据重新构建奖励选择情况
     if (isOpen && rewardCache.length > 0) {
       console.log('🔄 [RewardViewer] 用户数据变化，重新构建奖励选择情况')
-      buildUserRewards(rewardCache)
+      
+      // 添加防抖机制，避免频繁更新导致闪烁
+      const debounceTimer = setTimeout(() => {
+        buildUserRewards(rewardCache)
+      }, 300)
+      
+      return () => clearTimeout(debounceTimer)
     }
   }, [users, isOpen, rewardCache, buildUserRewards])
 
@@ -218,13 +222,27 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     return rewardMap[userReward.user.order_number || 0] || null
   }
 
-  // 统计已选择奖励的用户数量和绝地翻盘获胜者
-  const selectedCount = users.filter(user => user.role === 'player' && user.selected_reward).length
-  const hasFinalLotteryWinner = userRewards.some(ur => ur.isFinalLotteryWinner)
-  const displayCount = selectedCount + (hasFinalLotteryWinner ? 1 : 0)
+  // 统计已选择奖励的用户数量和绝地翻盘获胜者 - 使用 useMemo 优化
+  const selectedCount = useMemo(() => 
+    users.filter(user => user.role === 'player' && user.selected_reward).length, 
+    [users]
+  )
+  
+  const hasFinalLotteryWinner = useMemo(() => 
+    userRewards.some(ur => ur.isFinalLotteryWinner), 
+    [userRewards]
+  )
+  
+  const displayCount = useMemo(() => 
+    selectedCount + (hasFinalLotteryWinner ? 1 : 0), 
+    [selectedCount, hasFinalLotteryWinner]
+  )
   
   // 修复进度显示：如果 totalParticipants 为 0 但 selectedCount 不为 0，则将 totalParticipants 设置为 selectedCount
-  const adjustedTotalParticipants = totalParticipants === 0 && selectedCount > 0 ? selectedCount : totalParticipants
+  const adjustedTotalParticipants = useMemo(() => 
+    totalParticipants === 0 && selectedCount > 0 ? selectedCount : totalParticipants, 
+    [totalParticipants, selectedCount]
+  )
 
   return (
     <>
