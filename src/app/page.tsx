@@ -633,8 +633,8 @@ export default function Home() {
       
       {/* 刷新按钮 */}
       <RefreshButton 
-        onRefresh={async () => {
-          await refreshRoom()
+        onRefresh={() => {
+          window.location.reload()
         }}
         className="bottom-36 right-4"
       />
