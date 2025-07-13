@@ -170,8 +170,8 @@ export function useRealtime({
   const debouncedFetchAll = useCallback(() => {
     const now = Date.now()
     
-    // 如果距离上次查询不足 2 秒，则跳过
-    if (now - lastFetchTimeRef.current < 2000) {
+    // 如果距离上次查询不足 1 秒，则跳过
+    if (now - lastFetchTimeRef.current < 1000) {
       return
     }
     
@@ -182,7 +182,7 @@ export function useRealtime({
     usersFetchTimeoutRef.current = setTimeout(() => {
       lastFetchTimeRef.current = Date.now()
       fetchRoomUsers()
-    }, 2500) // 增加到2.5秒防抖，显著减少查询频率
+    }, 800) // 减少到800ms防抖，提高用户数据响应速度
   }, [fetchRoomUsers])
 
   // 防抖函数 - 进一步增加防抖时间
@@ -196,7 +196,7 @@ export function useRealtime({
     }
     roomFetchTimeoutRef.current = setTimeout(() => {
       fetchRoom()
-    }, 2000) // 增加到2秒防抖，减少频繁查询
+    }, 800) // 减少到800ms防抖，提高房间状态响应速度
   }, [fetchRoom])
 
   const debouncedFetchRewards = useCallback(() => {
@@ -205,7 +205,7 @@ export function useRealtime({
     }
     rewardsFetchTimeoutRef.current = setTimeout(() => {
       fetchRewards()
-    }, 1500) // 增加到1.5秒防抖，奖励数据变化相对较少
+    }, 500) // 减少到500ms防抖，提高奖励数据响应速度
   }, [fetchRewards])
 
   // 设置实时订阅

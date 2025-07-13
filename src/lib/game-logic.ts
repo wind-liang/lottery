@@ -132,16 +132,22 @@ export class GameLogic {
     }
   }
 
-  // 获取房间的奖励列表
+  // 获取房间的奖励列表 - 优化版本
   static async getRewards(roomId: string): Promise<Reward[]> {
     try {
+      // 使用索引优化的查询
       const { data, error } = await supabase
         .from('rewards')
         .select('*')
         .eq('room_id', roomId)
         .order('order_index', { ascending: true })
       
-      if (error) throw error
+      if (error) {
+        console.error('🎁 [GameLogic] 获取奖励列表失败:', error)
+        throw error
+      }
+      
+      console.log('🎁 [GameLogic] 成功获取奖励列表:', data?.length || 0, '个奖励')
       return data || []
     } catch (error) {
       console.error('获取奖励列表失败:', error)

@@ -76,7 +76,7 @@ CREATE TABLE emojis (
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
--- 索引
+-- 基础索引
 CREATE INDEX idx_users_room_id ON users(room_id);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_is_online ON users(is_online);
@@ -90,6 +90,13 @@ CREATE INDEX idx_rewards_room_id ON rewards(room_id);
 CREATE INDEX idx_rewards_order_index ON rewards(order_index);
 CREATE INDEX idx_emojis_room_id ON emojis(room_id);
 CREATE INDEX idx_emojis_expires_at ON emojis(expires_at);
+
+-- 优化索引：添加复合索引以提高奖励相关查询性能
+CREATE INDEX idx_rewards_room_id_order_index ON rewards(room_id, order_index);
+CREATE INDEX idx_rewards_room_id_selected_by ON rewards(room_id, selected_by);
+CREATE INDEX idx_users_room_id_role_order ON users(room_id, role, order_number);
+CREATE INDEX idx_users_room_id_role_selected ON users(room_id, role, selected_reward);
+CREATE INDEX idx_final_lottery_participants_room_drawn ON final_lottery_participants(room_id, is_drawn);
 
 -- 更新时间戳触发器
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -91,7 +91,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     // 使用防抖机制，避免频繁检查
     checkTimer = setTimeout(() => {
       checkRewardSelectionComplete()
-    }, 1000) // 1秒防抖
+    }, 500) // 减少到500ms防抖，提高响应速度
 
     return () => {
       if (checkTimer) {

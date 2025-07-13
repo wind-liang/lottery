@@ -106,14 +106,14 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
       resetTimeout = setTimeout(() => {
         setTimeLeft(30)
         setSelectedReward(null) // 清除选择状态
-      }, 500)
+      }, 300) // 减少到300ms防抖，提高响应速度
     } else if (!selectionInProgress) {
       // 如果选择流程结束，也重置倒计时
       console.log('🕐 [倒计时] 选择流程结束，重置倒计时')
       resetTimeout = setTimeout(() => {
         setTimeLeft(30)
         setSelectedReward(null)
-      }, 500)
+      }, 300) // 减少到300ms防抖，提高响应速度
     } else if (selectionInProgress && currentSelector && rewards.length === 0) {
       // 如果奖励还没有加载完成，等待奖励加载
       console.log('🕐 [倒计时] 等待奖励加载完成才开始倒计时')

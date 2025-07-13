@@ -559,7 +559,7 @@ export default function Home() {
         } catch (error) {
           console.error('检查选择状态失败:', error)
         }
-      }, 1000) // 增加到1秒防抖，减少频繁检查
+      }, 500) // 减少到500ms防抖，提高响应速度
 
       return () => clearTimeout(checkTimeout)
     }
