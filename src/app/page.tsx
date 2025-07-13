@@ -16,6 +16,8 @@ import { RewardSelection } from '@/components/reward-selection'
 import { ComebackModal } from '@/components/comeback-modal'
 import { RewardViewer } from '@/components/reward-viewer'
 import { RefreshButton } from '@/components/refresh-button'
+import { Confetti } from '@/components/confetti'
+
 import { useRealtime } from '@/lib/use-realtime'
 import { useUserPresence } from '@/lib/use-user-presence'
 import type { Database } from '@/lib/supabase'
@@ -516,6 +518,8 @@ export default function Home() {
     // 倒计时结束后只关闭弹窗，等待主持人手动点击按钮进入绝地翻盘阶段
   }
 
+
+
   // 监听用户变化以检查是否所有人都选择完毕 - 优化依赖项
   useEffect(() => {
     // 只在奖励选择阶段且有用户且弹窗未显示过时才检查
@@ -618,6 +622,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 to-rose-200">
+      {/* 撒花效果 - 游戏结束时显示 */}
+      <Confetti isActive={room.stage === 'finished'} />
+      
       {/* 实时通知 */}
       <RealtimeNotifications />
       
@@ -750,6 +757,8 @@ export default function Home() {
         onClose={handleComebackModalClose}
         onComplete={handleComebackModalComplete}
       />
+
+
     </div>
   )
 }
