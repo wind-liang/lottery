@@ -67,8 +67,41 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
   } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [allRewardSelectionComplete, setAllRewardSelectionComplete] = useState(false)
+  const [lotteryStatus, setLotteryStatus] = useState<'idle' | 'drawing' | 'processing'>('idle')
 
   const isHost = currentUser.role === 'host'
+
+  // 心跳检测 - 定期检查锁定状态并自动恢复
+  useEffect(() => {
+    if (!isHost) return
+
+    let heartbeatTimer: NodeJS.Timeout | null = null
+    
+    const checkLockStatus = async () => {
+      try {
+        const recovered = await GameLogic.checkAndRecoverLockStatus(room.id)
+        if (!recovered) {
+          console.log('🔄 [心跳检测] 检测到异常锁定并自动恢复')
+          // 触发UI更新
+          onStageChange()
+        }
+      } catch (error) {
+        console.error('心跳检测失败:', error)
+      }
+    }
+
+    // 只在可能出现锁定的阶段进行心跳检测
+    if (room.stage === 'waiting' || room.stage === 'lottery') {
+      // 每5秒检查一次锁定状态
+      heartbeatTimer = setInterval(checkLockStatus, 5000)
+    }
+
+    return () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer)
+      }
+    }
+  }, [isHost, room.id, room.stage, onStageChange])
 
   // 检查所有人是否选择完毕 - 优化检查逻辑，减少频繁查询
   useEffect(() => {
@@ -110,30 +143,42 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     if (!isHost) return
     
     setIsLoading(true)
-    let lockTimer: NodeJS.Timeout | null = null
+    setLotteryStatus('drawing')
     
     try {
       // 检查是否可以开始抽奖
       const canStart = await GameLogic.canStartLottery(room.id)
       if (!canStart) {
-        alert('当前无法开始抽奖')
-        return
+        // 尝试自动恢复锁定状态
+        const recovered = await GameLogic.checkAndRecoverLockStatus(room.id)
+        if (!recovered) {
+          // 发生了自动恢复，重新检查是否可以开始
+          const canStartAfterRecovery = await GameLogic.canStartLottery(room.id)
+          if (!canStartAfterRecovery) {
+            alert('当前无法开始抽奖，请稍后重试')
+            return
+          }
+        } else {
+          alert('当前无法开始抽奖')
+          return
+        }
       }
 
-      console.log('🎯 [抽奖] 开始锁定抽奖3秒')
-      // 锁定抽奖3秒
-      await GameLogic.setLotteryLocked(room.id, true)
+      console.log('🎯 [抽奖] 开始锁定抽奖，等待抽奖完成')
       
-      // 设置3秒后解锁抽奖的定时器
-      lockTimer = setTimeout(async () => {
-        console.log('⏰ [抽奖] 3秒锁定时间到，解锁抽奖')
-        await GameLogic.setLotteryLocked(room.id, false)
-      }, 3000)
+      // 使用带超时保护的锁定方法（防止异常情况）
+      const lockResult = await GameLogic.setLotteryLockedWithTimeout(room.id, 10000) // 10秒超时保护
+      if (!lockResult) {
+        alert('抽奖锁定失败，请重试')
+        return
+      }
       
       // 抽取一个参与者
       const drawnUser = await GameLogic.drawRandomParticipant(room.id)
       if (!drawnUser) {
         alert('没有参与者可以抽取')
+        // 立即解锁，因为没有进行实际抽奖
+        await GameLogic.setLotteryLocked(room.id, false)
         return
       }
 
@@ -149,30 +194,67 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
         })
       }
 
-      // 检查是否所有参与者都已被抽中
-      const allDrawn = await GameLogic.areAllParticipantsDrawn(room.id)
-      if (allDrawn) {
-        // 更新到奖励选择阶段
-        await GameLogic.updateRoomStage(room.id, 'reward_selection')
-      }
+      // 抽奖主要逻辑完成，切换到处理状态
+      console.log('✅ [抽奖] 抽奖主要流程完成，开始后续处理')
+      setLotteryStatus('processing')
+      setIsLoading(false)
+      
+      // 后续数据处理异步进行
+      console.log('🔄 [抽奖] 开始后续数据处理...')
+      
+      try {
+        // 检查是否所有参与者都已被抽中
+        const allDrawn = await GameLogic.areAllParticipantsDrawn(room.id)
+        if (allDrawn) {
+          console.log('🎉 [抽奖] 所有人都被抽中，更新到奖励选择阶段')
+          // 更新到奖励选择阶段
+          await GameLogic.updateRoomStage(room.id, 'reward_selection')
+        }
 
-      onStageChange()
+        // 抽奖完成后解锁
+        console.log('✅ [抽奖] 数据处理完成，解锁抽奖')
+        await GameLogic.setLotteryLocked(room.id, false)
+
+        onStageChange()
+      } catch (postProcessError) {
+        console.error('抽奖后续处理失败:', postProcessError)
+        // 即使后续处理失败，也要确保解锁
+        await GameLogic.forceUnlock(room.id)
+        onStageChange()
+      } finally {
+        // 完成所有处理后重置状态
+        setLotteryStatus('idle')
+      }
+      
     } catch (error) {
       console.error('抽奖失败:', error)
-      alert('抽奖失败，请重试')
       
-      // 如果出现错误，立即解锁抽奖
-      console.log('❌ [抽奖] 出现错误，立即解锁抽奖')
-      await GameLogic.setLotteryLocked(room.id, false)
-      
-      // 清除定时器，避免重复解锁
-      if (lockTimer) {
-        clearTimeout(lockTimer)
-        lockTimer = null
+      // 确定错误类型并提供相应的用户反馈
+      let errorMessage = '抽奖失败，请重试'
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '网络连接异常，请检查网络后重试'
+        } else if (error.message.includes('timeout')) {
+          errorMessage = '操作超时，请稍后重试'
+        } else if (error.message.includes('locked')) {
+          errorMessage = '抽奖正在进行中，请等待'
+        }
       }
-    } finally {
+      
+      alert(errorMessage)
+      
+      // 如果出现错误，强制解锁抽奖
+      console.log('❌ [抽奖] 出现错误，强制解锁抽奖')
+      await GameLogic.forceUnlock(room.id)
+      
+      // 触发UI更新
+      onStageChange()
+      
+      // 错误情况下重置所有状态
       setIsLoading(false)
+      setLotteryStatus('idle')
     }
+    // 移除finally块，因为我们已经在成功和失败情况下分别处理了isLoading状态
   }
 
   const handleResetGame = async () => {
@@ -195,13 +277,22 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     
     setIsLoading(true)
     try {
-      console.log('🚨 [紧急解锁] 主持人手动解锁抽奖')
-      await GameLogic.setLotteryLocked(room.id, false)
-      onStageChange()
-      alert('抽奖已解锁')
+      console.log('🚨 [紧急解锁] 主持人手动强制解锁抽奖')
+      
+      // 使用新的强制解锁方法
+      const success = await GameLogic.forceUnlock(room.id)
+      
+      if (success) {
+        console.log('✅ [紧急解锁] 强制解锁成功')
+        onStageChange()
+        alert('抽奖已成功解锁！')
+      } else {
+        console.error('❌ [紧急解锁] 强制解锁失败')
+        alert('解锁失败，请刷新页面后重试')
+      }
     } catch (error) {
       console.error('紧急解锁失败:', error)
-      alert('紧急解锁失败，请重试')
+      alert('解锁失败，请刷新页面后重试')
     } finally {
       setIsLoading(false)
     }
@@ -378,7 +469,12 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 className="w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-500 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 <Play className="w-4 h-4" />
-                <span>{isLoading ? '抽奖中...' : room.is_lottery_locked ? '抽奖锁定中...' : '开始抽奖'}</span>
+                <span>
+                  {isLoading ? '抽奖中...' : 
+                   room.is_lottery_locked ? 
+                     (lotteryStatus === 'processing' ? '处理中...' : '抽奖中...') : 
+                     '开始抽奖'}
+                </span>
               </button>
               
               {/* 紧急解锁按钮 */}
@@ -386,14 +482,28 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 <button
                   onClick={() => confirmAction(
                     '紧急解锁',
-                    '确定要强制解锁抽奖吗？',
+                    '确定要强制解锁抽奖吗？这将立即解除锁定状态。',
                     handleEmergencyUnlock
                   )}
                   disabled={isLoading}
-                  className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 text-sm"
+                  className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
                 >
-                  🚨 紧急解锁
+                  <span>🚨</span>
+                  <span>
+                    {isLoading ? '解锁中...' : '紧急解锁'}
+                  </span>
                 </button>
+              )}
+              
+              {/* 锁定状态提示 */}
+              {room.is_lottery_locked && (
+                <div className="text-center text-sm text-gray-600 bg-yellow-50 px-3 py-2 rounded-lg">
+                  <span>
+                    {lotteryStatus === 'drawing' && '正在抽奖中，请稍候...'}
+                    {lotteryStatus === 'processing' && '抽奖完成，正在处理数据...'}
+                    {lotteryStatus === 'idle' && '抽奖锁定中，请等待抽奖完成'}
+                  </span>
+                </div>
               )}
             </div>
           )}
@@ -411,7 +521,12 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 className="w-full px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg font-medium hover:from-yellow-500 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
               >
                 <Play className="w-4 h-4" />
-                <span>{isLoading ? '抽奖中...' : room.is_lottery_locked ? '抽奖锁定中...' : '继续抽奖'}</span>
+                <span>
+                  {isLoading ? '抽奖中...' : 
+                   room.is_lottery_locked ? 
+                     (lotteryStatus === 'processing' ? '处理中...' : '抽奖中...') : 
+                     '继续抽奖'}
+                </span>
               </button>
               
               {/* 紧急解锁按钮 */}
@@ -419,27 +534,29 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
                 <button
                   onClick={() => confirmAction(
                     '紧急解锁',
-                    '确定要强制解锁抽奖吗？',
+                    '确定要强制解锁抽奖吗？这将立即解除锁定状态。',
                     handleEmergencyUnlock
                   )}
                   disabled={isLoading}
-                  className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 text-sm"
+                  className="w-full px-3 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
                 >
-                  🚨 紧急解锁
+                  <span>🚨</span>
+                  <span>
+                    {isLoading ? '解锁中...' : '紧急解锁'}
+                  </span>
                 </button>
               )}
               
-              <button
-                onClick={() => confirmAction(
-                  '开始选择奖励',
-                  '确定要开始奖励选择阶段吗？',
-                  handleStartRewardSelection
-                )}
-                disabled={isLoading}
-                className="w-full px-4 py-2 bg-gradient-to-r from-green-400 to-green-600 text-white rounded-lg font-medium hover:from-green-500 hover:to-green-700 disabled:opacity-50"
-              >
-                {isLoading ? '处理中...' : '开始选择奖励'}
-              </button>
+              {/* 锁定状态提示 */}
+              {room.is_lottery_locked && (
+                <div className="text-center text-sm text-gray-600 bg-yellow-50 px-3 py-2 rounded-lg">
+                  <span>
+                    {lotteryStatus === 'drawing' && '正在抽奖中，请稍候...'}
+                    {lotteryStatus === 'processing' && '抽奖完成，正在处理数据...'}
+                    {lotteryStatus === 'idle' && '抽奖锁定中，请等待抽奖完成'}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

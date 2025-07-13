@@ -534,13 +534,105 @@ export class GameLogic {
     try {
       const { error } = await supabase
         .from('rooms')
-        .update({ is_lottery_locked: locked })
+        .update({ 
+          is_lottery_locked: locked,
+          // 添加锁定时间戳，用于超时保护
+          updated_at: new Date().toISOString()
+        })
         .eq('id', roomId)
       
       if (error) throw error
+      
+      console.log(locked ? '🔒 [锁定] 抽奖已锁定' : '🔓 [解锁] 抽奖已解锁')
       return true
     } catch (error) {
       console.error('设置抽奖锁定状态失败:', error)
+      return false
+    }
+  }
+
+  // 带超时保护的锁定方法
+  static async setLotteryLockedWithTimeout(roomId: string, timeoutMs: number = 10000): Promise<boolean> {
+    try {
+      // 先设置锁定
+      const lockResult = await this.setLotteryLocked(roomId, true)
+      if (!lockResult) return false
+
+      // 设置超时保护 - 防止抽奖过程中出现异常导致永久锁定
+      setTimeout(async () => {
+        console.log('⏰ [超时保护] 检查锁定状态...')
+        const { data: room } = await supabase
+          .from('rooms')
+          .select('is_lottery_locked, updated_at')
+          .eq('id', roomId)
+          .single()
+        
+        if (room?.is_lottery_locked) {
+          const lockTime = new Date(room.updated_at).getTime()
+          const now = new Date().getTime()
+          const timeDiff = now - lockTime
+          
+          // 如果锁定时间超过预期，强制解锁
+          if (timeDiff > timeoutMs) {
+            console.log('⚠️ [超时保护] 检测到异常锁定，强制解锁')
+            await this.setLotteryLocked(roomId, false)
+          }
+        }
+      }, timeoutMs + 2000) // 多等2秒作为缓冲
+
+      return true
+    } catch (error) {
+      console.error('设置带超时保护的锁定失败:', error)
+      return false
+    }
+  }
+
+  // 检查锁定状态并自动恢复
+  static async checkAndRecoverLockStatus(roomId: string): Promise<boolean> {
+    try {
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('is_lottery_locked, updated_at, stage')
+        .eq('id', roomId)
+        .single()
+      
+      if (!room || !room.is_lottery_locked) {
+        return true // 未锁定或房间不存在
+      }
+
+      const lockTime = new Date(room.updated_at).getTime()
+      const now = new Date().getTime()
+      const timeDiff = now - lockTime
+
+      // 如果锁定时间超过15秒，认为是异常锁定
+      if (timeDiff > 15000) {
+        console.log('🚨 [自动恢复] 检测到异常锁定，自动解锁')
+        await this.setLotteryLocked(roomId, false)
+        return false // 返回false表示发生了异常恢复
+      }
+
+      return true // 正常锁定状态
+    } catch (error) {
+      console.error('检查锁定状态失败:', error)
+      return true
+    }
+  }
+
+  // 强制解锁（紧急情况使用）
+  static async forceUnlock(roomId: string): Promise<boolean> {
+    try {
+      console.log('🚨 [强制解锁] 执行强制解锁操作')
+      const result = await this.setLotteryLocked(roomId, false)
+      
+      if (result) {
+        console.log('✅ [强制解锁] 强制解锁成功')
+      } else {
+        console.error('❌ [强制解锁] 强制解锁失败')
+      }
+      
+      return result
+    } catch (error) {
+      console.error('强制解锁失败:', error)
       return false
     }
   }
