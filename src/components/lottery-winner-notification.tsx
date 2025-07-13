@@ -253,7 +253,7 @@ export function LotteryWinnerNotification({
               >
                 {isFinalLottery 
                   ? (isCurrentUser ? '你成功实现了绝地翻盘！' : `${winner?.nickname || ''}成功实现了绝地翻盘！`)
-                  : (isCurrentUser ? '你成功获得了名次！' : `${winner?.nickname || ''}成功获得了名次！`)
+                  :  '名次将作为下一阶段选择礼物的顺序'
                 }
               </motion.div>
             </div>

@@ -105,7 +105,10 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
       // 使用防抖机制，避免频繁重置
       resetTimeout = setTimeout(() => {
         setTimeLeft(30)
-        setSelectedReward(null) // 清除选择状态
+        // 只有当轮到当前用户时才重置选择状态，避免影响其他用户
+        if (currentSelector.id === currentUser.id) {
+          setSelectedReward(null) // 清除选择状态
+        }
       }, 300) // 减少到300ms防抖，提高响应速度
     } else if (!selectionInProgress) {
       // 如果选择流程结束，也重置倒计时
@@ -183,8 +186,14 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
       return
     }
     
-    console.log('✅ [奖励选择] 选择奖励成功:', rewardId)
-    setSelectedReward(rewardId)
+    // 如果点击的是已选择的奖励，则取消选择
+    if (selectedReward === rewardId) {
+      console.log('🔄 [奖励选择] 取消选择奖励:', rewardId)
+      setSelectedReward(null)
+    } else {
+      console.log('✅ [奖励选择] 选择奖励成功:', rewardId)
+      setSelectedReward(rewardId)
+    }
   }
 
   const handleConfirmSelection = () => {
@@ -218,8 +227,6 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
       const success = await GameLogic.selectReward(currentSelector.id, selectedReward)
       if (success) {
         console.log('✅ [奖励选择] 用户选择成功:', currentSelector.nickname)
-        setShowConfirm(false)
-        setSelectedReward(null)
         
         // 等待一下确保数据库更新完成
         await new Promise(resolve => setTimeout(resolve, 200))
@@ -253,6 +260,9 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
             console.error('❌ [奖励选择] 更新房间选择者失败:', error)
           } else {
             console.log('✅ [奖励选择] 房间选择者更新成功')
+            // 选择成功并成功轮转到下一个用户，重置状态
+            setShowConfirm(false)
+            setSelectedReward(null)
           }
           
           onStageChange()
@@ -285,15 +295,22 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
             .eq('id', room.id)
           
           console.log('🎉 [奖励选择] 所有人都选择完毕，流程完成')
+          // 所有人都选择完毕，重置状态
+          setShowConfirm(false)
+          setSelectedReward(null)
         }
       } else {
         console.error('❌ [奖励选择] 选择奖励失败')
         alert('选择奖励失败，请重试')
+        // 选择失败，关闭确认弹窗但保持选择状态，让用户可以重新尝试
+        setShowConfirm(false)
       }
     } catch (error) {
       console.error('确认选择失败:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       alert(`确认选择失败: ${errorMessage}`)
+      // 出现错误，关闭确认弹窗但保持选择状态，让用户可以重新尝试
+      setShowConfirm(false)
     } finally {
       console.log('🏁 [奖励选择] 选择流程结束')
     }
