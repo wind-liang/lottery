@@ -7,11 +7,13 @@ import { RealtimeChannel } from '@supabase/supabase-js'
 
 type User = Database['public']['Tables']['users']['Row']
 type Room = Database['public']['Tables']['rooms']['Row']
+type Reward = Database['public']['Tables']['rewards']['Row']
 
 interface UseRealtimeProps {
   roomId: string | null
   onUsersChange?: (users: User[]) => void
   onRoomChange?: (room: Room) => void
+  onRewardsChange?: (rewards: Reward[]) => void
   onEmojiReceived?: (emoji: { userId: string, emoji: string, nickname: string }) => void
   onUserJoined?: (user: User) => void
   onUserLeft?: (userId: string) => void
@@ -22,6 +24,7 @@ export function useRealtime({
   roomId,
   onUsersChange,
   onRoomChange,
+  onRewardsChange,
   onEmojiReceived,
   onUserJoined,
   onUserLeft,
@@ -135,9 +138,32 @@ export function useRealtime({
     onRoomChange?.(room)
   }, [roomId, onRoomChange])
 
+  // 获取奖励列表
+  const fetchRewards = useCallback(async () => {
+    if (!roomId) return
+
+    try {
+      const { data: rewards, error } = await supabase
+        .from('rewards')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('order_index', { ascending: true })
+
+      if (error) {
+        console.error('❌ [Realtime] 获取奖励列表失败:', error)
+        return
+      }
+
+      onRewardsChange?.(rewards || [])
+    } catch (error) {
+      console.error('❌ [Realtime] 获取奖励列表失败:', error)
+    }
+  }, [roomId, onRewardsChange])
+
   // 防抖定时器引用
   const usersFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const roomFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const rewardsFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // 防抖函数 - 增加防抖时间减少频繁查询
   const debouncedFetchUsers = useCallback(() => {
@@ -157,6 +183,15 @@ export function useRealtime({
       fetchRoom()
     }, 1000) // 增加到1秒防抖，减少频繁查询
   }, [fetchRoom])
+
+  const debouncedFetchRewards = useCallback(() => {
+    if (rewardsFetchTimeoutRef.current) {
+      clearTimeout(rewardsFetchTimeoutRef.current)
+    }
+    rewardsFetchTimeoutRef.current = setTimeout(() => {
+      fetchRewards()
+    }, 500) // 奖励数据变化需要更快响应
+  }, [fetchRewards])
 
   // 设置实时订阅
   useEffect(() => {
@@ -199,6 +234,24 @@ export function useRealtime({
         },
         () => {
           debouncedFetchRoom()
+        }
+      )
+      .subscribe()
+
+    // 奖励表订阅
+    const rewardsChannel = supabase
+      .channel(`rewards-${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rewards',
+          filter: `room_id=eq.${roomId}`,
+        },
+        () => {
+          console.log('🎁 [Realtime] 奖励数据变化，刷新奖励列表')
+          debouncedFetchRewards()
         }
       )
       .subscribe()
@@ -315,11 +368,12 @@ export function useRealtime({
       })
 
     // 存储所有频道引用
-    channelsRef.current = [userChannel, roomChannel, emojiChannel, finalLotteryChannel]
+    channelsRef.current = [userChannel, roomChannel, rewardsChannel, emojiChannel, finalLotteryChannel]
 
     // 初始加载数据
     fetchRoomUsers()
     fetchRoom()
+    fetchRewards()
 
     // 清理函数
     return () => {
@@ -337,11 +391,16 @@ export function useRealtime({
         clearTimeout(roomFetchTimeoutRef.current)
         roomFetchTimeoutRef.current = null
       }
+      if (rewardsFetchTimeoutRef.current) {
+        clearTimeout(rewardsFetchTimeoutRef.current)
+        rewardsFetchTimeoutRef.current = null
+      }
     }
-  }, [roomId, debouncedFetchUsers, debouncedFetchRoom, onEmojiReceived])
+  }, [roomId, debouncedFetchUsers, debouncedFetchRoom, debouncedFetchRewards, onEmojiReceived])
 
   return {
     refreshUsers: fetchRoomUsers,
-    refreshRoom: fetchRoom
+    refreshRoom: fetchRoom,
+    refreshRewards: fetchRewards
   }
 } 

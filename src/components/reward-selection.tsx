@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { GameLogic } from '@/lib/game-logic'
+import { useRealtime } from '@/lib/use-realtime'
 import { Crown, Clock, Check } from 'lucide-react'
 import type { Database } from '@/lib/supabase'
 
@@ -37,18 +38,25 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
     .slice(0, 2)
 
-  // 移除了 sortedPlayers 变量，因为现在直接使用 GameLogic.getNextSelector 来获取下一个选择者
-
-  // 移除了 getCurrentSelector 函数，因为现在从房间状态获取当前选择者
-
+  // 初始加载奖励数据
   const fetchRewards = useCallback(async () => {
     try {
       const rewardList = await GameLogic.getRewards(room.id)
+      console.log('🎁 [RewardSelection] 初始加载奖励数据:', rewardList.length)
       setRewards(rewardList)
     } catch (error) {
       console.error('获取奖励列表失败:', error)
     }
   }, [room.id])
+
+  // 使用实时订阅来更新奖励列表
+  useRealtime({
+    roomId: room.id,
+    onRewardsChange: (rewardsData) => {
+      console.log('🎁 [RewardSelection] 收到奖励数据更新:', rewardsData.length)
+      setRewards(rewardsData)
+    }
+  })
 
   const handleRandomSelection = useCallback(async () => {
     if (!currentSelector) return
@@ -68,7 +76,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
       // 获取下一个选择者（直接从数据库查询最新状态）
       const nextSelector = await GameLogic.getNextSelector(room.id)
       
-      await fetchRewards()
+      // 奖励数据会通过实时订阅自动更新，不需要手动刷新
       onStageChange()
       
       if (nextSelector) {
@@ -99,17 +107,17 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
     } catch (error) {
       console.error('随机选择失败:', error)
     }
-  }, [currentSelector?.id, rewards, fetchRewards, onStageChange, room.id])
+  }, [currentSelector?.id, rewards, onStageChange, room.id])
 
   // 更新 ref 中的函数引用
   useEffect(() => {
     handleRandomSelectionRef.current = handleRandomSelection
   }, [handleRandomSelection])
 
-  // 加载奖励列表
+  // 初始加载奖励数据
   useEffect(() => {
     fetchRewards()
-  }, [room.id])
+  }, [fetchRewards])
 
   // 倒计时 - 当选择者变化时重置
   useEffect(() => {
@@ -225,8 +233,7 @@ export function RewardSelection({ room, currentUser, users, onStageChange }: Rew
         console.log('🔍 [奖励选择] 查找下一个选择者...')
         const nextSelector = await GameLogic.getNextSelector(room.id)
         
-        // 刷新奖励列表和用户列表
-        await fetchRewards()
+        // 奖励列表会通过实时订阅自动更新，只需要刷新用户列表
         onStageChange()
         
         console.log('🔍 [奖励选择] 查找结果:', nextSelector ? {
