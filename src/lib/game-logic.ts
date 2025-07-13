@@ -478,40 +478,61 @@ export class GameLogic {
       }
       
       console.log('🎯 [drawFinalLotteryWinner] 选中的参与者:', selectedParticipant.users.nickname)
-      console.log('🎯 [drawFinalLotteryWinner] 参与者ID:', selectedParticipant.id)
       
-      // 标记该参与者为已抽中
-      console.log('🎯 [drawFinalLotteryWinner] 开始更新数据库...')
-      const { error: updateError } = await supabase
-        .from('final_lottery_participants')
-        .update({ 
-          is_drawn: true, 
-          drawn_at: new Date().toISOString() 
-        })
-        .eq('id', selectedParticipant.id)
+      // 使用数据库事务确保原子性操作
+      const { error: transactionError } = await supabase.rpc('draw_final_lottery_winner', {
+        participant_id: selectedParticipant.id,
+        winner_user_id: selectedParticipant.user_id
+      })
       
-      if (updateError) {
-        console.error('❌ [drawFinalLotteryWinner] 更新绝地翻盘抽奖状态失败:', updateError)
-        return null
+      if (transactionError) {
+        console.error('❌ [drawFinalLotteryWinner] 事务执行失败:', transactionError)
+        
+        // 如果 RPC 函数不存在，则回退到手动事务
+        console.log('🔄 [drawFinalLotteryWinner] 回退到手动事务处理')
+        
+        // 步骤1：标记绝地翻盘参与者为已抽中
+        const { error: updateParticipantError } = await supabase
+          .from('final_lottery_participants')
+          .update({ 
+            is_drawn: true, 
+            drawn_at: new Date().toISOString() 
+          })
+          .eq('id', selectedParticipant.id)
+        
+        if (updateParticipantError) {
+          console.error('❌ [drawFinalLotteryWinner] 更新绝地翻盘参与者失败:', updateParticipantError)
+          return null
+        }
+        
+        // 步骤2：在用户表中标记获胜者（使用特殊的 order_number: -1 表示绝地翻盘获胜者）
+        const { error: updateUserError } = await supabase
+          .from('users')
+          .update({ 
+            order_number: -1, // 使用 -1 标识绝地翻盘获胜者
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', selectedParticipant.user_id)
+        
+        if (updateUserError) {
+          console.error('❌ [drawFinalLotteryWinner] 更新用户获胜标记失败:', updateUserError)
+          
+          // 如果更新用户表失败，回滚绝地翻盘参与者表的更新
+          await supabase
+            .from('final_lottery_participants')
+            .update({ 
+              is_drawn: false, 
+              drawn_at: null 
+            })
+            .eq('id', selectedParticipant.id)
+          
+          return null
+        }
       }
       
-      console.log('✅ [drawFinalLotteryWinner] 数据库更新成功，应该触发实时监听')
+      console.log('✅ [drawFinalLotteryWinner] 绝地翻盘获胜者更新成功')
       
-      // 等待一段时间确保数据库事务完成和实时监听有时间处理
-      console.log('⏳ [drawFinalLotteryWinner] 等待数据库事务完成...')
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // 验证更新是否成功
-      const { data: verifyData } = await supabase
-        .from('final_lottery_participants')
-        .select('*')
-        .eq('id', selectedParticipant.id)
-        .single()
-      
-      console.log('🔍 [drawFinalLotteryWinner] 验证更新结果:', verifyData)
-      
-      // 再次等待确保实时监听有充足时间处理
-      console.log('⏳ [drawFinalLotteryWinner] 等待实时监听处理...')
+      // 等待短时间确保实时监听有时间处理
       await new Promise(resolve => setTimeout(resolve, 300))
       
       return selectedParticipant.users

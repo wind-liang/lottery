@@ -42,7 +42,33 @@ COMMENT ON COLUMN final_lottery_participants.room_id IS '房间ID';
 COMMENT ON COLUMN final_lottery_participants.user_id IS '用户ID';
 COMMENT ON COLUMN final_lottery_participants.weight IS '抽奖权重，数值越大中奖概率越高';
 COMMENT ON COLUMN final_lottery_participants.is_drawn IS '是否已被抽中';
-COMMENT ON COLUMN final_lottery_participants.drawn_at IS '抽中时间'; 
+COMMENT ON COLUMN final_lottery_participants.drawn_at IS '抽中时间';
+
+-- 创建绝地翻盘抽奖的原子性函数
+CREATE OR REPLACE FUNCTION draw_final_lottery_winner(
+  participant_id UUID,
+  winner_user_id UUID
+) RETURNS VOID AS $$
+BEGIN
+  -- 在事务中执行以下操作
+  
+  -- 1. 标记绝地翻盘参与者为已抽中
+  UPDATE final_lottery_participants 
+  SET 
+    is_drawn = true,
+    drawn_at = NOW()
+  WHERE id = participant_id;
+  
+  -- 2. 在用户表中标记获胜者（使用 -1 表示绝地翻盘获胜者）
+  UPDATE users 
+  SET 
+    order_number = -1,
+    updated_at = NOW()
+  WHERE id = winner_user_id;
+  
+  -- 如果任何操作失败，事务会自动回滚
+END;
+$$ LANGUAGE plpgsql;
 
 -- 启用实时功能
 ALTER TABLE final_lottery_participants ENABLE ROW LEVEL SECURITY;

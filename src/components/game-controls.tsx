@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { Play, X } from 'lucide-react'
 import { GameLogic } from '../lib/game-logic'
-import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -366,7 +365,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
       console.log('🎯 [绝地翻盘] 抽中用户:', winner.nickname)
       console.log('🎯 [绝地翻盘] 主持人客户端触发获奖通知')
 
-      // 触发获奖通知（绝地翻盘获胜者不需要order_number）
+      // 主持人端立即触发获奖通知
       if (onWinnerDrawn) {
         console.log('🎯 [绝地翻盘] 调用 onWinnerDrawn 回调')
         onWinnerDrawn({
@@ -379,54 +378,6 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
         console.error('🎯 [绝地翻盘] onWinnerDrawn 回调不存在')
       }
 
-      // 增强的多重广播机制：确保所有客户端都能收到通知
-      console.log('🎯 [绝地翻盘] 启动增强广播机制...')
-      
-      // 方法1：延长表情标记的持续时间，确保所有客户端都能接收到
-      try {
-        console.log('🎯 [绝地翻盘] 更新获奖者表情标记...')
-        await supabase
-          .from('users')
-          .update({ 
-            current_emoji: '🏆', // 临时设置一个表情
-            emoji_expires_at: new Date(Date.now() + 5000).toISOString() // 延长到5秒，确保所有客户端都能收到
-          })
-          .eq('id', winner.id)
-        
-        console.log('🎯 [绝地翻盘] 表情标记更新成功')
-      } catch (broadcastError) {
-        console.error('🎯 [绝地翻盘] 表情标记更新失败:', broadcastError)
-      }
-
-      // 方法2：间隔性触发，增加接收成功率
-      const broadcastRetries = 3
-      for (let i = 0; i < broadcastRetries; i++) {
-        try {
-          console.log(`🎯 [绝地翻盘] 执行第 ${i + 1} 次广播重试...`)
-          
-          // 通过更新获奖者的 updated_at 字段来触发实时监听
-          await supabase
-            .from('users')
-            .update({ 
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', winner.id)
-          
-          console.log(`🎯 [绝地翻盘] 第 ${i + 1} 次广播成功`)
-          
-          // 每次重试间隔500ms
-          if (i < broadcastRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500))
-          }
-        } catch (retryError) {
-          console.error(`🎯 [绝地翻盘] 第 ${i + 1} 次广播失败:`, retryError)
-        }
-      }
-
-      // 等待足够时间确保所有实时监听都有机会处理
-      console.log('🎯 [绝地翻盘] 等待实时监听处理...')
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
       // 等待5秒后进入完结阶段
       setTimeout(async () => {
         await GameLogic.updateRoomStage(room.id, 'finished')
@@ -435,7 +386,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
 
       onStageChange()
     } catch (error) {
-      console.error('绝地翻盘抽奖失败:', error)
+      console.error('❌ [绝地翻盘] 抽奖失败:', error)
       alert('绝地翻盘抽奖失败，请重试')
     } finally {
       setIsLoading(false)
