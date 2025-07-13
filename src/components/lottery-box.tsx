@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Gift, X, Crown } from 'lucide-react'
+import { Gift, X, Crown, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 
@@ -29,6 +29,11 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
   const [participants, setParticipants] = useState<User[]>([])
   const [finalParticipants, setFinalParticipants] = useState<FinalLotteryParticipant[]>([])
   const [isShaking] = useState(false)
+  
+  // 参与抽奖相关状态
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [participateStatus, setParticipateStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [participateMessage, setParticipateMessage] = useState('')
 
   // 获取主持人列表（最多两个，按加入时间排序，保持固定顺序）
   const hosts = users
@@ -100,13 +105,23 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
     setIsOpen(!isOpen)
   }
 
-  const handleParticipate = async () => {
+  const handleParticipate = useCallback(async () => {
     if (currentUser.role !== 'player') {
       console.log('❌ 用户角色不是玩家，无法参与抽奖:', currentUser.role)
       return
     }
 
+    // 防止重复提交
+    if (isSubmitting) {
+      console.log('⏳ 正在提交中，忽略重复请求')
+      return
+    }
+
     try {
+      setIsSubmitting(true)
+      setParticipateStatus('idle')
+      setParticipateMessage('')
+      
       console.log('🎯 玩家参与抽奖:', currentUser.nickname)
       const { error } = await supabase
         .from('lottery_participants')
@@ -115,13 +130,34 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
           user_id: currentUser.id
         })
 
-      if (error) throw error
-      console.log('✅ 成功参与抽奖')
-      await fetchParticipants()
+      if (error) {
+        // 检查是否是重复参与错误
+        if (error.code === '23505') {
+          setParticipateStatus('error')
+          setParticipateMessage('您已经参与过抽奖了')
+        } else {
+          throw error
+        }
+      } else {
+        console.log('✅ 成功参与抽奖')
+        setParticipateStatus('success')
+        setParticipateMessage('成功参与抽奖！')
+        await fetchParticipants()
+      }
     } catch (error) {
       console.error('❌ 参与抽奖失败:', error)
+      setParticipateStatus('error')
+      setParticipateMessage('参与抽奖失败，请重试')
+    } finally {
+      setIsSubmitting(false)
+      
+      // 3秒后清除状态提示
+      setTimeout(() => {
+        setParticipateStatus('idle')
+        setParticipateMessage('')
+      }, 3000)
     }
-  }
+  }, [currentUser, roomId, isSubmitting])
 
   const isParticipating = participants.some(p => p.id === currentUser.id)
   const canParticipate = currentUser.role === 'player' && stage === 'waiting' && !isParticipating
@@ -264,10 +300,50 @@ export function LotteryBox({ roomId, stage, currentUser, users }: LotteryBoxProp
         <div className="text-center mt-4">
           <button
             onClick={handleParticipate}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+            disabled={isSubmitting}
+            className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 mx-auto ${
+              isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : participateStatus === 'success'
+                ? 'bg-green-500 hover:bg-green-600'
+                : participateStatus === 'error'
+                ? 'bg-red-500 hover:bg-red-600'
+                : 'bg-green-500 hover:bg-green-600'
+            } text-white`}
           >
-            参与抽奖
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>参与中...</span>
+              </>
+            ) : participateStatus === 'success' ? (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                <span>已参与</span>
+              </>
+            ) : participateStatus === 'error' ? (
+              <>
+                <AlertCircle className="w-4 h-4" />
+                <span>重试</span>
+              </>
+            ) : (
+              <span>参与抽奖</span>
+            )}
           </button>
+          
+          {/* 状态提示信息 */}
+          {participateMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`mt-2 text-sm ${
+                participateStatus === 'success' ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {participateMessage}
+            </motion.div>
+          )}
         </div>
       )}
 
