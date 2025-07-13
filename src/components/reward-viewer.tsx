@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { X, Gift, Crown, User, Users, Zap } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GameLogic } from '@/lib/game-logic'
@@ -39,7 +39,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
       const now = Date.now()
       if (now - lastFetchTime < 2000 && rewardCache.length > 0) {
         console.log('🚀 [RewardViewer] 使用缓存数据，跳过数据库查询')
-        buildUserRewards(rewardCache)
+        await buildUserRewards(rewardCache)
         setLoading(false)
         return
       }
@@ -50,22 +50,6 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
       // 更新缓存
       setRewardCache(rewardList)
       setLastFetchTime(now)
-      
-      // 只有当用户已经进入奖励选择阶段时才查询参与者数量
-      const hasSelectedRewards = users.some(user => user.role === 'player' && user.selected_reward)
-      if (hasSelectedRewards) {
-        const { data: participantsCountData, error: participantsError } = await supabase
-          .from('lottery_participants')
-          .select('id')
-          .eq('room_id', roomId)
-        
-        if (participantsError) {
-          console.error('获取参与抽奖人数失败:', participantsError)
-          setTotalParticipants(0)
-        } else {
-          setTotalParticipants(participantsCountData?.length || 0)
-        }
-      }
       
       // 只有当所有人都选择完毕时才查询绝地翻盘获胜者
       const allPlayersSelected = users.filter(u => u.role === 'player' && u.order_number != null)
@@ -90,7 +74,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
         }
       }
 
-      buildUserRewards(rewardList, finalLotteryWinner)
+      await buildUserRewards(rewardList, finalLotteryWinner)
       
     } catch (error) {
       console.error('获取奖励数据失败:', error)
@@ -100,8 +84,50 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
   }
 
   // 构建用户奖励数据的辅助函数
-  const buildUserRewards = (rewardList: Reward[], finalLotteryWinner?: { users: User } | null) => {
-    console.log('🏆 [RewardViewer] 绝地翻盘获胜者:', finalLotteryWinner?.users?.nickname || '无')
+  const buildUserRewards = useCallback(async (rewardList: Reward[], finalLotteryWinner?: { users: User } | null) => {
+    // 更新参与者数量
+    const hasSelectedRewards = users.some(user => user.role === 'player' && user.selected_reward)
+    if (hasSelectedRewards) {
+      const { data: participantsCountData, error: participantsError } = await supabase
+        .from('lottery_participants')
+        .select('id')
+        .eq('room_id', roomId)
+      
+      if (participantsError) {
+        console.error('获取参与抽奖人数失败:', participantsError)
+        setTotalParticipants(0)
+      } else {
+        setTotalParticipants(participantsCountData?.length || 0)
+      }
+    }
+
+    // 如果没有传入绝地翻盘获胜者，则查询
+    let winner = finalLotteryWinner
+    if (!winner) {
+      // 只有当所有人都选择完毕时才查询绝地翻盘获胜者
+      const allPlayersSelected = users.filter(u => u.role === 'player' && u.order_number != null)
+        .every(u => u.selected_reward != null)
+      
+      if (allPlayersSelected) {
+        const { data: finalWinner, error: finalError } = await supabase
+          .from('final_lottery_participants')
+          .select(`
+            *,
+            users (*)
+          `)
+          .eq('room_id', roomId)
+          .eq('is_drawn', true)
+          .single()
+        
+        if (finalError && finalError.code !== 'PGRST116') {
+          console.error('获取绝地翻盘获胜者失败:', finalError)
+        } else {
+          winner = finalWinner
+        }
+      }
+    }
+
+    console.log('🏆 [RewardViewer] 绝地翻盘获胜者:', winner?.users?.nickname || '无')
     
     // 构建有奖励选择的用户数据
     const normalUserRewards: UserRewardSelection[] = users
@@ -115,9 +141,9 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     
     // 添加绝地翻盘获胜者（如果存在）
     let allUserRewards = [...normalUserRewards]
-    if (finalLotteryWinner?.users) {
+    if (winner?.users) {
       const finalWinnerData: UserRewardSelection = {
-        user: finalLotteryWinner.users as User,
+        user: winner.users as User,
         reward: {
           id: 'final-lottery-special',
           name: '绝地翻盘大奖',
@@ -125,7 +151,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
           image_url: null,
           room_id: roomId,
           order_index: 999,
-          selected_by: finalLotteryWinner.users.id,
+          selected_by: winner.users.id,
           created_at: new Date().toISOString()
         } as Reward,
         isFinalLotteryWinner: true
@@ -134,7 +160,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
     }
     
     setUserRewards(allUserRewards)
-  }
+  }, [users, roomId])
 
   // 当弹窗打开时获取数据
   useEffect(() => {
@@ -142,6 +168,15 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
       fetchRewards()
     }
   }, [isOpen, roomId])
+
+  // 监听用户数据变化，实时更新奖励选择进度
+  useEffect(() => {
+    // 如果弹窗已经打开且有奖励缓存，则基于最新用户数据重新构建奖励选择情况
+    if (isOpen && rewardCache.length > 0) {
+      console.log('🔄 [RewardViewer] 用户数据变化，重新构建奖励选择情况')
+      buildUserRewards(rewardCache)
+    }
+  }, [users, isOpen, rewardCache, buildUserRewards])
 
   const handleToggle = () => {
     setIsOpen(!isOpen)
