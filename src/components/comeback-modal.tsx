@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, TrendingUp, Crown, Trophy, Star } from 'lucide-react'
+import { X, TrendingUp, Crown, Trophy, Star, Zap } from 'lucide-react'
 import { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -79,6 +79,8 @@ export function ComebackModal({
 
   const getPlayerIcon = (orderNumber: number) => {
     switch (orderNumber) {
+      case -1:
+        return <Zap className="w-4 h-4 text-red-500" />
       case 1:
         return <Crown className="w-4 h-4 text-yellow-500" />
       case 2:
@@ -226,7 +228,7 @@ export function ComebackModal({
                           </div>
                           {/* 排名标识 */}
                           <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-800">{player.order_number}</span>
+                            <span className="text-xs font-bold text-gray-800">{player.order_number === -1 ? '🏆' : player.order_number}</span>
                           </div>
                         </div>
                         
@@ -235,7 +237,7 @@ export function ComebackModal({
                           <p className="text-white font-medium">{player.nickname}</p>
                           <p className="text-white/70 text-sm flex items-center">
                             {getPlayerIcon(player.order_number || 0)}
-                            <span className="ml-1">第{player.order_number}名</span>
+                            <span className="ml-1">{player.order_number === -1 ? '🏆 绝地翻盘获胜者' : `第${player.order_number}名`}</span>
                           </p>
                         </div>
                       </div>

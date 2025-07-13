@@ -445,7 +445,7 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
                       {isMyTurn ? '轮到你选择了' : `${currentSelector.nickname} 正在选择`}
                     </p>
                     <p className="text-gray-600 text-sm">
-                      第 {currentSelector.order_number} 名
+                      {currentSelector.order_number === -1 ? '🏆 绝地翻盘获胜者' : `第 ${currentSelector.order_number} 名`}
                     </p>
                   </div>
                 </div>

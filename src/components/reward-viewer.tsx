@@ -135,7 +135,12 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
         reward: rewardList.find(r => r.id === user.selected_reward) || null,
         isFinalLotteryWinner: false
       }))
-      .sort((a, b) => (a.user.order_number || 0) - (b.user.order_number || 0))
+      .sort((a, b) => {
+        // 排除 order_number 为 -1 的用户（绝地翻盘获胜者）
+        const aOrder = a.user.order_number === -1 ? 0 : (a.user.order_number || 0)
+        const bOrder = b.user.order_number === -1 ? 0 : (b.user.order_number || 0)
+        return aOrder - bOrder
+      })
     
     // 添加绝地翻盘获胜者（如果存在）
     let allUserRewards = [...normalUserRewards]
@@ -210,6 +215,9 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
   const getRedPacketReward = (userReward: UserRewardSelection) => {
     // 绝地翻盘获胜者的奖励
     if (userReward.isFinalLotteryWinner) return 300
+    
+    // 如果是绝地翻盘获胜者标识（order_number = -1），也给予绝地翻盘奖励
+    if (userReward.user.order_number === -1) return 300
     
     // 根据排名给予红包奖励
     const rewardMap: { [key: number]: number } = {
@@ -366,7 +374,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
                                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
                                 : 'bg-gradient-to-r from-red-500 to-pink-500'
                             }`}>
-                              {userReward.isFinalLotteryWinner ? '翻' : userReward.user.order_number}
+                              {userReward.isFinalLotteryWinner ? '翻' : (userReward.user.order_number === -1 ? '🏆' : userReward.user.order_number)}
                             </div>
                           </div>
 
@@ -384,7 +392,7 @@ export function RewardViewer({ roomId, users, className = '' }: RewardViewerProp
                               )}
                             </div>
                             <p className="text-sm text-gray-500 font-medium">
-                              {userReward.isFinalLotteryWinner ? '绝地翻盘获胜者' : `第 ${userReward.user.order_number} 名`}
+                              {userReward.isFinalLotteryWinner ? '绝地翻盘获胜者' : (userReward.user.order_number === -1 ? '🏆 绝地翻盘获胜者' : `第 ${userReward.user.order_number} 名`)}
                             </p>
                           </div>
                         </div>

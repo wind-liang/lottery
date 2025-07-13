@@ -331,7 +331,7 @@ export function UserAvatars({ users, currentUser, onUserClick, onRoleChange, onK
                 {/* 顺序号 */}
                 {user.order_number && (
                   <div className="absolute -bottom-1 -left-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold z-10">
-                    {user.order_number}
+                    {user.order_number === -1 ? '🏆' : user.order_number}
                   </div>
                 )}
                 
