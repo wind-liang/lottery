@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRealtime } from '@/lib/use-realtime'
-import { useUserPresence } from '@/lib/use-user-presence'
+import { useRealtimeOptimized as useRealtime } from '@/lib/use-realtime-optimized'
+import { useUserPresenceOptimized as useUserPresence } from '@/lib/use-user-presence-optimized'
 import { performUserCleanup, markInactiveUsersOffline } from '@/lib/user-cleanup'
 import { RealtimeNotifications } from '@/components/realtime-notifications'
+import { ConnectionStatus } from '@/components/connection-status'
+import { RealtimePerformanceMonitor } from '@/components/realtime-performance-monitor'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -39,8 +41,8 @@ export default function TestRealtime() {
     }
   })
 
-  // 使用用户状态管理hook
-  useUserPresence({
+  // 使用优化版用户状态管理hook
+  const { connectionState, isOnline, heartbeatInterval, reconnect } = useUserPresence({
     userId: currentUser?.id || null,
     roomId: room?.id || null,
     enabled: !!currentUser && !!room
@@ -150,6 +152,21 @@ export default function TestRealtime() {
           <h1 className="text-3xl font-bold text-gray-800 mb-8 text-center">
             实时通信功能测试
           </h1>
+
+          {/* 连接状态指示器 */}
+          <ConnectionStatus
+            connectionState={connectionState}
+            isOnline={isOnline}
+            heartbeatInterval={heartbeatInterval}
+            onReconnect={reconnect}
+            className="mb-6"
+          />
+
+          {/* 性能监控组件 */}
+          <RealtimePerformanceMonitor
+            enabled={true}
+            className="mb-6"
+          />
 
           {/* 状态显示 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

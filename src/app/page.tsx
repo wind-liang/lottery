@@ -17,9 +17,11 @@ import { ComebackModal } from '@/components/comeback-modal'
 import { RewardViewer } from '@/components/reward-viewer'
 import { RefreshButton } from '@/components/refresh-button'
 import { Confetti } from '@/components/confetti'
+import { ConnectionStatusMini } from '@/components/connection-status'
+import { RealtimePerformanceMonitor } from '@/components/realtime-performance-monitor'
 
-import { useRealtime } from '@/lib/use-realtime'
-import { useUserPresence } from '@/lib/use-user-presence'
+import { useRealtimeOptimized as useRealtime } from '@/lib/use-realtime-optimized'
+import { useUserPresenceOptimized as useUserPresence } from '@/lib/use-user-presence-optimized'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -74,6 +76,18 @@ export default function Home() {
   // 使用 useCallback 优化回调函数，避免重复创建
   const handleUsersChange = useCallback((updatedUsers: User[]) => {
     console.log('🔄 [实时] 用户列表更新:', updatedUsers.length, '个用户')
+    
+    // 在奖励选择阶段，添加详细的用户状态日志
+    if (room?.stage === 'reward_selection') {
+      const playersWithOrder = updatedUsers.filter(u => u.role === 'player' && u.order_number != null)
+      const playersWithReward = playersWithOrder.filter(u => u.selected_reward != null)
+      console.log('🔄 [实时] 奖励选择阶段用户状态:', {
+        totalPlayers: playersWithOrder.length,
+        selectedPlayers: playersWithReward.length,
+        progress: playersWithReward.map(p => ({ nickname: p.nickname, order: p.order_number }))
+      })
+    }
+    
     setUsers(updatedUsers)
     
     // 同步更新currentUser状态
@@ -84,7 +98,7 @@ export default function Home() {
         setCurrentUser(updatedCurrentUser)
       }
     }
-  }, [currentUser])
+  }, [currentUser, room?.stage])
 
   const handleRoomChange = useCallback((updatedRoom: Room) => {
     console.log('🔄 [实时] 房间信息更新:', updatedRoom?.name, '阶段:', updatedRoom?.stage)
@@ -92,8 +106,9 @@ export default function Home() {
     // 重置绝地翻盘弹窗标志的条件：
     // 1. 离开 reward_selection 阶段
     // 2. 游戏被重置（回到 waiting 阶段）
+    // 3. 重新进入 reward_selection 阶段（新一轮游戏）
     if (room && room.stage !== updatedRoom.stage) {
-      if (room.stage === 'reward_selection' || updatedRoom.stage === 'waiting') {
+      if (room.stage === 'reward_selection' || updatedRoom.stage === 'waiting' || updatedRoom.stage === 'reward_selection') {
         console.log('🔄 [实时] 检测到阶段变更，重置绝地翻盘弹窗标志')
         console.log('🔄 [实时] 原阶段:', room.stage, '新阶段:', updatedRoom.stage)
         comebackModalShownRef.current = false // 重置 ref
@@ -164,7 +179,7 @@ export default function Home() {
     setRewards(rewardsData)
   }, [])
 
-  // 使用实时通信hook
+  // 使用优化版实时通信hook
   const { refreshRoom } = useRealtime({
     roomId: room?.id || null,
     onUsersChange: handleUsersChange,
@@ -176,12 +191,14 @@ export default function Home() {
     onWinnerDrawn: handleRealtimeWinnerDrawn
   })
 
-  // 使用用户状态管理hook
-  useUserPresence({
+  // 使用优化版用户状态管理hook
+  const presenceData = useUserPresence({
     userId: currentUser?.id || null,
     roomId: room?.id || null,
     enabled: !!currentUser && !!room
   })
+  
+  const { connectionState, isOnline } = presenceData
 
   // 定期清理过期表情（降低频率，减少数据库负载）
   useEffect(() => {
@@ -526,7 +543,7 @@ export default function Home() {
     if (room?.stage === 'reward_selection' && users.length > 0 && !comebackModalShownRef.current) {
       console.log('🔍 [检查选择状态] 开始检查，弹窗是否已显示过:', comebackModalShownRef.current)
       
-      // 使用防抖机制，避免频繁检查
+      // 使用更短的防抖时间，确保快速响应
       const checkTimeout = setTimeout(async () => {
         try {
           // 再次检查标记，防止在延迟期间被其他调用标记
@@ -535,29 +552,24 @@ export default function Home() {
             return
           }
           
-          // 获取所有有排序的玩家
-          const { data: players, error } = await supabase
-            .from('users')
-            .select('id, nickname, order_number, selected_reward')
-            .eq('room_id', room.id)
-            .eq('role', 'player')
-            .not('order_number', 'is', null)
-            .order('order_number', { ascending: true })
-
-          if (error) throw error
-
-          // 检查是否所有人都选择了奖励
-          const allSelected = players?.every(player => !!player.selected_reward)
+          // 直接使用已有的用户数据，避免重复查询
+          const playersWithOrder = users.filter(u => u.role === 'player' && u.order_number != null)
+          const playersWithReward = playersWithOrder.filter(u => u.selected_reward != null)
           
-          console.log('🔍 [检查选择状态] 所有玩家:', players?.map(p => ({
+          console.log('🔍 [检查选择状态] 所有玩家:', playersWithOrder.map(p => ({
             nickname: p.nickname,
             order: p.order_number,
             hasSelected: !!p.selected_reward
           })))
           
+          console.log('🔍 [检查选择状态] 选择进度:', playersWithReward.length, '/', playersWithOrder.length)
+          
+          // 检查是否所有人都选择了奖励
+          const allSelected = playersWithOrder.length > 0 && playersWithReward.length === playersWithOrder.length
+          
           console.log('🔍 [检查选择状态] 是否全部选择完毕:', allSelected)
 
-          if (allSelected && players && players.length > 0) {
+          if (allSelected) {
             console.log('🎉 [绝地翻盘] 所有人选择完毕，准备显示绝地翻盘弹窗')
             
             // 只有在真正要显示弹窗时才标记
@@ -573,16 +585,15 @@ export default function Home() {
         } catch (error) {
           console.error('检查选择状态失败:', error)
         }
-      }, 500) // 减少到500ms防抖，提高响应速度
+      }, 100) // 减少到100ms防抖，提高响应速度
 
       return () => clearTimeout(checkTimeout)
     }
   }, [
     room?.stage, 
     room?.id, 
-    // 优化依赖项：只关注玩家的奖励选择状态变化，避免其他状态变化导致的重复检查
-    users.filter(u => u.role === 'player' && u.order_number != null).length,
-    users.filter(u => u.role === 'player' && u.order_number != null && u.selected_reward != null).length
+    // 优化依赖项：直接监听用户数组的变化，确保任何奖励选择状态变化都能触发检查
+    users.map(u => u.role === 'player' && u.order_number != null && u.selected_reward != null ? `${u.id}:selected` : `${u.id}:unselected`).join(',')
   ])
 
   // 如果未登录，显示登录界面
@@ -645,6 +656,21 @@ export default function Home() {
         }}
         className="bottom-36 right-4"
       />
+      
+      {/* 连接状态指示器 */}
+      <ConnectionStatusMini
+        connectionState={connectionState}
+        isOnline={isOnline}
+        className="fixed bottom-4 right-4 z-40"
+      />
+      
+      {/* 开发环境性能监控 */}
+      {process.env.NODE_ENV === 'development' && (
+        <RealtimePerformanceMonitor
+          enabled={true}
+          className="fixed bottom-4 left-4 w-80 z-40"
+        />
+      )}
       
       {/* 主游戏区域 */}
       <div className="container mx-auto px-4 py-8 relative z-20">
