@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserPlus, UserMinus, Smile, UserX, Trophy } from 'lucide-react'
+import { UserPlus, UserMinus, Smile, UserX, Trophy, RefreshCw, AlertCircle } from 'lucide-react'
 
 interface Notification {
   id: string
-  type: 'user_joined' | 'user_left' | 'emoji_sent' | 'user_kicked' | 'lottery_winner'
+  type: 'user_joined' | 'user_left' | 'emoji_sent' | 'user_kicked' | 'lottery_winner' | 'game_reset' | 'game_reset_failed'
   message: string
   timestamp: Date
   emoji?: string
@@ -47,6 +47,10 @@ export function RealtimeNotifications({ className = '' }: RealtimeNotificationsP
         return <Smile className="w-4 h-4 text-purple-500" />
       case 'lottery_winner':
         return <Trophy className="w-4 h-4 text-yellow-500" />
+      case 'game_reset':
+        return <RefreshCw className="w-4 h-4 text-blue-500" />
+      case 'game_reset_failed':
+        return <AlertCircle className="w-4 h-4 text-red-500" />
       default:
         return null
     }
@@ -65,6 +69,10 @@ export function RealtimeNotifications({ className = '' }: RealtimeNotificationsP
         return 'bg-purple-50 border-purple-200 text-purple-800'
       case 'lottery_winner':
         return 'bg-yellow-50 border-yellow-200 text-yellow-800'
+      case 'game_reset':
+        return 'bg-blue-50 border-blue-200 text-blue-800'
+      case 'game_reset_failed':
+        return 'bg-red-50 border-red-200 text-red-800'
       default:
         return 'bg-gray-50 border-gray-200 text-gray-800'
     }

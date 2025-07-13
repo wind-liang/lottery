@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Play, X } from 'lucide-react'
 import { GameLogic } from '../lib/game-logic'
+import { addRealtimeNotification } from './realtime-notifications'
 import type { Database } from '@/lib/supabase'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -261,11 +262,29 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
     
     setIsLoading(true)
     try {
-      await GameLogic.resetGame(room.id)
-      onStageChange()
+      const resetSuccess = await GameLogic.resetGame(room.id)
+      
+      if (resetSuccess) {
+        // 显示成功提示
+        addRealtimeNotification({
+          type: 'game_reset',
+          message: '🎮 游戏已成功重置，所有数据已清除，可以重新开始游戏'
+        })
+        
+        onStageChange()
+      } else {
+        // 虽然没有抛出异常，但重置失败
+        addRealtimeNotification({
+          type: 'game_reset_failed',
+          message: '⚠️ 游戏重置失败，请重试'
+        })
+      }
     } catch (error) {
       console.error('重置游戏失败:', error)
-      alert('重置游戏失败，请重试')
+      addRealtimeNotification({
+        type: 'game_reset_failed',
+        message: '❌ 游戏重置失败，请重试'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -621,7 +640,7 @@ export function GameControls({ room, currentUser, users, onStageChange, onWinner
           <button
             onClick={() => confirmAction(
               '重置游戏',
-              '确定要重置游戏吗？所有数据将被清除。',
+              '确定要重置游戏吗？这将清除所有抽奖数据、用户排名和奖励选择，游戏将回到等待阶段。',
               handleResetGame
             )}
             disabled={isLoading}
