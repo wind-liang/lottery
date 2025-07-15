@@ -190,12 +190,13 @@ export function useRealtime({
   const rewardsFetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastFetchTimeRef = useRef<number>(0) // 记录最后一次查询时间
 
-  // 合并的防抖函数 - 减少重复查询
+  // 合并的防抖函数 - 为表情功能优化响应速度
   const debouncedFetchAll = useCallback(() => {
     const now = Date.now()
     
-    // 如果距离上次查询不足 1 秒，则跳过
-    if (now - lastFetchTimeRef.current < 1000) {
+    // 优化：对于表情相关的更新，减少防抖间隔
+    // 如果距离上次查询不足 500ms，则跳过
+    if (now - lastFetchTimeRef.current < 500) {
       return
     }
     
@@ -206,7 +207,7 @@ export function useRealtime({
     usersFetchTimeoutRef.current = setTimeout(() => {
       lastFetchTimeRef.current = Date.now()
       fetchRoomUsers()
-    }, 800) // 减少到800ms防抖，提高用户数据响应速度
+    }, 300) // 进一步减少到300ms防抖，提高表情显示响应速度
   }, [fetchRoomUsers])
 
   // 防抖函数 - 进一步增加防抖时间
@@ -297,7 +298,7 @@ export function useRealtime({
       )
       .subscribe()
 
-    // 表情表订阅 - 优化处理逻辑
+    // 表情表订阅 - 优化处理逻辑，减少重复查询
     const emojiChannel = supabase
       .channel(`emojis-${roomId}`)
       .on(
@@ -330,10 +331,10 @@ export function useRealtime({
             }
           }
           
-          // 表情插入后延迟更新用户列表，避免频繁查询
-          setTimeout(() => {
-            debouncedFetchUsers()
-          }, 1000)
+          // 优化：表情插入后不需要立即刷新用户列表
+          // 因为用户表的变化已经通过用户订阅处理了
+          // 移除这里的延迟查询，避免重复刷新
+          console.log('🎭 [Realtime] 表情插入完成，依赖用户表订阅处理UI更新')
         }
       )
       .subscribe()

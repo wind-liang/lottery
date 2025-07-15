@@ -666,10 +666,10 @@ export class GameLogic {
     }
   }
 
-  // 发送表情 - 优化重试机制和错误处理
+  // 发送表情 - 优化版本：减少数据库查询次数
   static async sendEmoji(userId: string, roomId: string, emoji: string): Promise<boolean> {
-    const MAX_RETRIES = 2 // 减少重试次数
-    const RETRY_DELAY = 2000 // 增加重试间隔到2秒
+    const MAX_RETRIES = 2
+    const RETRY_DELAY = 1000 // 减少重试延迟到1秒
     
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -683,29 +683,8 @@ export class GameLogic {
         const expiresAt = new Date()
         expiresAt.setSeconds(expiresAt.getSeconds() + 5) // 5秒后过期
         
-        // 先检查用户是否存在 - 减少不必要的查询
-        const { data: existingUser, error: checkError } = await supabase
-          .from('users')
-          .select('id, nickname, current_emoji, emoji_expires_at')
-          .eq('id', userId)
-          .single()
-        
-        if (checkError) {
-          console.error('🎭 查询用户失败:', checkError)
-          if (checkError.code === 'PGRST116') { // 用户不存在
-            throw new Error('用户不存在，请重新加入房间')
-          }
-          if (attempt === MAX_RETRIES) {
-            throw new Error('查询用户信息失败，请稍后重试')
-          }
-          // 第一次失败时等待后重试
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY))
-          continue
-        }
-        
-        console.log('🎭 [发送表情] 用户检查通过:', existingUser)
-        
-        // 执行更新操作
+        // 优化：直接更新用户表，如果用户不存在会自动失败
+        // 移除不必要的用户存在性检查，减少一次数据库查询
         const { data, error } = await supabase
           .from('users')
           .update({
@@ -713,11 +692,15 @@ export class GameLogic {
             emoji_expires_at: expiresAt.toISOString()
           })
           .eq('id', userId)
+          .eq('room_id', roomId) // 添加房间ID检查，提高安全性
           .select('id, nickname, current_emoji, emoji_expires_at')
           .single()
 
         if (error) {
           console.error(`🎭 [发送表情] 第${attempt}次尝试失败:`, error)
+          if (error.code === 'PGRST116') { // 用户不存在
+            throw new Error('用户不存在或不在该房间，请重新加入房间')
+          }
           if (attempt === MAX_RETRIES) {
             throw new Error('发送表情失败，请稍后重试')
           }
@@ -725,26 +708,29 @@ export class GameLogic {
           continue
         }
 
-        // 发送成功，同时插入表情记录 - 减少并发操作
-        try {
-          const { error: insertError } = await supabase
-            .from('emojis')
-            .insert({
-              user_id: userId,
-              room_id: roomId,
-              emoji: emoji,
-              expires_at: expiresAt.toISOString()
-            })
-
-          if (insertError) {
-            console.error('🎭 [发送表情] 插入表情记录失败:', insertError)
-            // 表情记录插入失败不影响用户状态更新，仅记录错误
-          }
-        } catch (insertError) {
-          console.error('🎭 [发送表情] 插入表情记录异常:', insertError)
-        }
-
         console.log('🎭 [发送表情] 发送成功:', data)
+        
+        // 优化：异步插入表情记录，不阻塞主流程
+        // 使用Promise.resolve包装，避免阻塞用户反馈
+        Promise.resolve().then(async () => {
+          try {
+            const { error: insertError } = await supabase
+              .from('emojis')
+              .insert({
+                user_id: userId,
+                room_id: roomId,
+                emoji: emoji,
+                expires_at: expiresAt.toISOString()
+              })
+
+            if (insertError) {
+              console.error('🎭 [发送表情] 插入表情记录失败:', insertError)
+            }
+          } catch (insertError) {
+            console.error('🎭 [发送表情] 插入表情记录异常:', insertError)
+          }
+        })
+
         return true
 
       } catch (error) {

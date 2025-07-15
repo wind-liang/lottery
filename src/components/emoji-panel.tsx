@@ -103,15 +103,13 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
       
       if (success) {
         console.log('🎭 表情发送成功')
-        setCountdown(5) // 5秒倒计时
+        setCountdown(3) // 减少冷却时间到3秒
         
-        // 发送成功后的回调 - 减少不必要的数据刷新
+        // 优化：移除延迟回调，让实时订阅处理数据更新
+        // 这样可以减少不必要的手动刷新，避免与实时订阅冲突
         if (onEmojiSent) {
-          console.log('🔄 表情发送成功，触发数据刷新')
-          // 延迟调用，避免与实时订阅冲突
-          setTimeout(() => {
-            onEmojiSent()
-          }, 500)
+          console.log('🔄 表情发送成功，通知父组件')
+          onEmojiSent()
         }
       } else {
         throw new Error('表情发送失败，请稍后重试')
