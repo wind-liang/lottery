@@ -128,7 +128,7 @@ export function ComebackModal({
               damping: 30,
               duration: 0.5
             }}
-            className="relative p-8 rounded-3xl shadow-2xl border-4 border-red-400/50 text-center bg-gradient-to-br from-red-500 to-red-700 max-w-lg w-full mx-4"
+            className="relative rounded-3xl shadow-2xl border-4 border-red-400/50 text-center bg-gradient-to-br from-red-500 to-red-700 max-w-md w-full mx-4 max-h-[90vh] overflow-hidden"
           >
             {/* 装饰光效 */}
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/20 to-transparent"></div>
@@ -136,17 +136,17 @@ export function ComebackModal({
             {/* 关闭按钮 */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 text-white hover:text-red-200 z-10"
+              className="absolute top-3 right-3 text-white hover:text-red-200 z-30 bg-black/20 rounded-full p-1"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
             {/* 星星装饰 */}
             <div className="absolute inset-0 overflow-hidden rounded-3xl">
-              {[...Array(20)].map((_, i) => (
+              {[...Array(15)].map((_, i) => (
                 <motion.div
                   key={i}
-                  className="absolute w-2 h-2 bg-white rounded-full opacity-60"
+                  className="absolute w-1.5 h-1.5 bg-white rounded-full opacity-60"
                   style={{
                     left: `${Math.random() * 100}%`,
                     top: `${Math.random() * 100}%`,
@@ -166,19 +166,19 @@ export function ComebackModal({
 
             {/* 倒计时 - 放在左上角，避免遮挡标题 */}
             <motion.div
-              className="absolute top-3 left-3 bg-white/30 backdrop-blur-sm rounded-full px-3 py-1 z-20 border border-white/50"
+              className="absolute top-2 left-2 bg-white/30 backdrop-blur-sm rounded-full px-2 py-1 z-20 border border-white/50"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.1 }}
             >
-              <span className="text-white font-bold text-sm">{countdown}s</span>
+              <span className="text-white font-bold text-xs">{countdown}s</span>
             </motion.div>
 
-            {/* 主要内容 */}
-            <div className="relative z-10">
+            {/* 可滚动的主要内容区域 */}
+            <div className="relative z-10 p-6 pb-4 max-h-[85vh] overflow-y-auto">
               {/* 标题 */}
               <motion.h2 
-                className="text-4xl font-bold text-white mb-2"
+                className="text-2xl font-bold text-white mb-2 mt-4"
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
@@ -187,7 +187,7 @@ export function ComebackModal({
               </motion.h2>
               
               <motion.p 
-                className="text-xl text-white/90 mb-6"
+                className="text-lg text-white/90 mb-4"
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.3 }}
@@ -197,29 +197,29 @@ export function ComebackModal({
 
               {/* 参与者信息 */}
               <motion.div
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-6"
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 mr-2" />
+                <h3 className="text-base font-semibold text-white mb-3 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 mr-2" />
                   翻盘参与者
                 </h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {lastFivePlayers.map((player, index) => (
                     <motion.div
                       key={player.id}
-                      className="flex items-center justify-between bg-white/10 rounded-xl p-3"
+                      className="flex items-center justify-between bg-white/10 rounded-lg p-2.5"
                       initial={{ x: -20, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: 0.6 + index * 0.1 }}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
                         {/* 头像 */}
                         <div className="relative">
-                          <div className="w-10 h-10 rounded-full border-2 border-white/50">
+                          <div className="w-8 h-8 rounded-full border-2 border-white/50">
                             <img
                               src={player.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.id}`}
                               alt={player.nickname}
@@ -227,15 +227,15 @@ export function ComebackModal({
                             />
                           </div>
                           {/* 排名标识 */}
-                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
+                          <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-white rounded-full flex items-center justify-center">
                             <span className="text-xs font-bold text-gray-800">{player.order_number === -1 ? '🏆' : player.order_number}</span>
                           </div>
                         </div>
                         
                         {/* 用户信息 */}
                         <div className="text-left">
-                          <p className="text-white font-medium">{player.nickname}</p>
-                          <p className="text-white/70 text-sm flex items-center">
+                          <p className="text-white font-medium text-sm">{player.nickname}</p>
+                          <p className="text-white/70 text-xs flex items-center">
                             {getPlayerIcon(player.order_number || 0)}
                             <span className="ml-1">{player.order_number === -1 ? '🏆 绝地翻盘获胜者' : `第${player.order_number}名`}</span>
                           </p>
@@ -244,10 +244,10 @@ export function ComebackModal({
                       
                       {/* 中奖概率 */}
                       <div className="text-right">
-                        <div className="text-xl font-bold text-yellow-300">
+                        <div className="text-lg font-bold text-yellow-300">
                           {getWinningChance(index)}%
                         </div>
-                        <div className="text-white/70 text-sm">
+                        <div className="text-white/70 text-xs">
                           中奖概率
                         </div>
                       </div>
@@ -258,25 +258,25 @@ export function ComebackModal({
 
               {/* 规则说明 */}
               <motion.div
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-4"
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-3"
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.8 }}
               >
-                <h4 className="text-lg font-semibold text-white mb-2">翻盘规则</h4>
-                <div className="text-white/90 text-sm space-y-1">
+                <h4 className="text-base font-semibold text-white mb-2">翻盘规则</h4>
+                <div className="text-white/90 text-xs space-y-0.5">
                   <p>最后一名将获得 5 倍中奖机会</p>
                   <p>倒数第二名将获得 4 倍中奖机会</p>
                   <p>以此类推，排名越后机会越多</p>
                 </div>
                 
                 {/* 红包奖励信息 */}
-                <div className="mt-4 p-3 bg-red-500/20 border border-red-400/30 rounded-xl">
-                  <div className="flex items-center justify-center mb-2">
-                    <span className="text-lg">🧧</span>
-                    <h5 className="text-white font-semibold ml-2">红包奖励</h5>
+                <div className="mt-3 p-2.5 bg-red-500/20 border border-red-400/30 rounded-lg">
+                  <div className="flex items-center justify-center mb-1">
+                    <span className="text-base">🧧</span>
+                    <h5 className="text-white font-semibold ml-1 text-sm">红包奖励</h5>
                   </div>
-                  <div className="text-white/90 text-sm">
+                  <div className="text-white/90 text-xs">
                     <p className="font-medium text-yellow-300 text-center">绝地翻盘获胜者：300元红包</p>
                   </div>
                 </div>
