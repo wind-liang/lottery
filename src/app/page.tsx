@@ -657,19 +657,22 @@ export default function Home() {
         className="bottom-36 right-4"
       />
       
-      {/* 连接状态指示器 */}
-      <ConnectionStatusMini
-        connectionState={connectionState}
-        isOnline={isOnline}
-        className="fixed bottom-4 right-4 z-40"
-      />
-      
-      {/* 开发环境性能监控 */}
+      {/* 开发环境调试工具 */}
       {process.env.NODE_ENV === 'development' && (
-        <RealtimePerformanceMonitor
-          enabled={true}
-          className="fixed bottom-4 left-4 w-80 z-40"
-        />
+        <>
+          {/* 连接状态指示器 */}
+          <ConnectionStatusMini
+            connectionState={connectionState}
+            isOnline={isOnline}
+            className="fixed bottom-4 right-4 z-40"
+          />
+          
+          {/* 性能监控 */}
+          <RealtimePerformanceMonitor
+            enabled={true}
+            className="fixed bottom-4 left-4 w-80 z-40"
+          />
+        </>
       )}
       
       {/* 主游戏区域 */}
