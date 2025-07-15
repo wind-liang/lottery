@@ -71,7 +71,7 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
       const timer = setTimeout(() => {
         setError(null)
         setRetryCount(0)
-      }, 8000) // 增加到8秒后清除错误提示，减少状态更新频率
+      }, 5000) // 5秒后清除错误提示
       return () => clearTimeout(timer)
     }
   }, [error])
@@ -103,7 +103,7 @@ export function EmojiPanel({ currentUser, roomId, onEmojiSent }: EmojiPanelProps
       
       if (success) {
         console.log('🎭 表情发送成功')
-        setCountdown(8) // 增加到8秒倒计时，减少频繁发送
+        setCountdown(5) // 5秒倒计时
         
         // 发送成功后的回调 - 减少不必要的数据刷新
         if (onEmojiSent) {
