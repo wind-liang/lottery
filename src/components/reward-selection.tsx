@@ -26,6 +26,8 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
   
   // 使用 ref 保存最新的 handleRandomSelection 函数
   const handleRandomSelectionRef = useRef<() => Promise<void>>(async () => {})
+  // 添加标记防止重复随机选择
+  const isRandomSelectionInProgress = useRef(false)
   
   // 从房间状态获取当前选择者
   const currentSelector = room.current_selector ? users.find(u => u.id === room.current_selector) : null
@@ -40,12 +42,20 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
   const handleRandomSelection = useCallback(async () => {
     if (!currentSelector) return
     
+    // 防止重复随机选择
+    if (isRandomSelectionInProgress.current) {
+      console.log('🚫 [随机选择] 随机选择已在进行中，跳过')
+      return
+    }
+    
     const availableRewards = rewards.filter(r => !r.selected_by)
     if (availableRewards.length === 0) return
     
     const randomReward = availableRewards[Math.floor(Math.random() * availableRewards.length)]
     
     try {
+      // 设置标记，防止重复触发
+      isRandomSelectionInProgress.current = true
       console.log('🎲 [随机选择] 为用户随机选择奖励:', currentSelector.nickname, randomReward.name)
       await GameLogic.selectReward(currentSelector.id, randomReward.id)
       
@@ -85,6 +95,9 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
       }
     } catch (error) {
       console.error('随机选择失败:', error)
+    } finally {
+      // 重置标记，允许下次随机选择
+      isRandomSelectionInProgress.current = false
     }
   }, [currentSelector?.id, rewards, onStageChange, room.id])
 
@@ -141,10 +154,14 @@ export function RewardSelection({ room, currentUser, users, rewards, onStageChan
           const newTime = prev - 1
           console.log('🕐 [倒计时] 倒计时更新:', newTime)
           if (newTime <= 0) {
-            // 时间到了，随机选择一个奖励
+            // 时间到了，立即清除定时器防止重复触发
+            if (timer) {
+              clearInterval(timer)
+              timer = null
+            }
+            // 随机选择一个奖励
             console.log('⏰ [倒计时] 时间到，随机选择奖励')
             handleRandomSelectionRef.current()
-            // 不要立即重置倒计时，让选择逻辑完成后再处理
             return 0
           }
           return newTime
